@@ -30,7 +30,7 @@ public partial class App : Application
                     new Styles.MaterialFontsOverride())));
         MainWindow = new Window();
 #if DEBUG
-        MainWindow.UseStudio();
+        MainWindow.UseStudio(showHotReloadIndicator: false);
 #endif
 
 
