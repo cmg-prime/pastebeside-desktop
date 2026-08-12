@@ -28,9 +28,11 @@ public sealed partial class MainPage : Page
     }
 
 	private static Border BasicBorder(UIElement child) => new Border()
-		.BorderBrush("Gray")
+		.Background(Theme.Brushes.Surface.Default)
+		.BorderBrush(Theme.Brushes.Outline.Variant.Default)
 		.BorderThickness(1)
-		.Margin(1)
-		.Padding(1)
+		.CornerRadius(8)
+		.Margin(8)
+		.Padding(12)
 		.Child(child);
 }
