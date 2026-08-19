@@ -1,3 +1,5 @@
+using PasteBeside.ClientFriendlyLog;
+
 namespace PasteBeside;
 
 public sealed partial class MainPage : Page

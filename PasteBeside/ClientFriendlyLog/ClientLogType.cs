@@ -1,4 +1,4 @@
-namespace PasteBeside;
+namespace PasteBeside.ClientFriendlyLog;
 
 public enum ClientLogType
 {

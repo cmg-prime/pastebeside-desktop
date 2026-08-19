@@ -1,4 +1,6 @@
-﻿namespace PasteBeside;
+﻿using PasteBeside.ClientFriendlyLog;
+
+namespace PasteBeside;
 
 internal partial record MainModel
 {
