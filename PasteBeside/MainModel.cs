@@ -10,6 +10,4 @@ internal partial record MainModel
 	}
 
 	public IState<ClientLog> ClientLog { get; }
-
-	public IState<string> Greet => State<string>.Value(this, () => "Hello Uno Platform!");
 }
