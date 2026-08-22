@@ -1,4 +1,4 @@
-<Project Sdk="Uno.Sdk">
+﻿<Project Sdk="Uno.Sdk">
   <PropertyGroup>
     <TargetFrameworks>net10.0-desktop</TargetFrameworks>
 
@@ -28,6 +28,9 @@
       MVUX;
       ThemeService;
       SkiaRenderer;
+	  Hosting;
+	  Navigation;
+	  Configuration;
     </UnoFeatures>
   </PropertyGroup>
 

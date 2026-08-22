@@ -1,5 +1,7 @@
 using System;
 using Microsoft.Extensions.Logging;
+using PasteBeside.ClientFriendlyLog;
+using Uno.Extensions.Navigation;
 using Uno.Resizetizer;
 
 namespace PasteBeside;
@@ -17,7 +19,7 @@ public partial class App : Application
 
     protected Window? MainWindow { get; private set; }
 
-    protected override void OnLaunched(LaunchActivatedEventArgs args)
+    protected async override void OnLaunched(LaunchActivatedEventArgs args)
     {
         // Load WinUI Resources
         Resources.Build(r => r.Merged(
@@ -28,11 +30,22 @@ public partial class App : Application
             new  MaterialToolkitTheme(
                     new Styles.ColorPaletteOverride(),
                     new Styles.MaterialFontsOverride())));
-        MainWindow = new Window();
+
+		var builder = this.CreateBuilder(args)
+			//NB: adds toolkit nav controls (as opposed to registering routes - see below).
+			.UseToolkitNavigation()
+			.Configure(host => host
+				.ConfigureServices((context, services) =>
+				{
+					services.AddSingleton<ClientLog>();
+				})
+				.UseNavigation(ReactiveViewModelMappings.ViewModelMappings, RegisterRoutes)
+			);
+
+        MainWindow = builder.Window;
 #if DEBUG
         MainWindow.UseStudio(showHotReloadIndicator: false);
 #endif
-
 
         // Do not repeat app initialization when the Window already has content,
         // just ensure that the window is active
@@ -57,8 +70,27 @@ public partial class App : Application
 
         MainWindow.SetWindowIcon();
         // Ensure the current window is active
-        MainWindow.Activate();
+        // MainWindow.Activate();
+
+		await builder.NavigateAsync<Shell>();
     }
+
+	private static void RegisterRoutes(IViewRegistry views, IRouteRegistry routes)
+	{
+		views.Register(
+			new ViewMap(ViewModel: typeof(ShellModel)),
+			new ViewMap<MainPage, MainModel>()
+		);
+
+		routes.Register(
+			new RouteMap("",
+				View: views.FindByViewModel<ShellModel>(),
+				Nested: [
+					new ("Main", View: views.FindByViewModel<MainModel>(), IsDefault: true)
+				]
+			)
+		);
+	}
 
     /// <summary>
     /// Invoked when Navigation to a certain page fails

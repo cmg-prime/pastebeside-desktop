@@ -4,10 +4,12 @@ namespace PasteBeside;
 
 internal partial record MainModel
 {
-	public MainModel()
+	public MainModel(ClientLog clientLog)
 	{
-		ClientLog = State.Value(this, () => new ClientLog());
+		ClientLog = State.Value(this, () => clientLog);
 	}
 
 	public IState<ClientLog> ClientLog { get; }
+
+	public IState<string> Greet => State<string>.Value(this, () => "Hello Uno Platform!");
 }

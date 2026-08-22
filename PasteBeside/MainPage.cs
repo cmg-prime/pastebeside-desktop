@@ -2,13 +2,13 @@ using PasteBeside.ClientFriendlyLog;
 
 namespace PasteBeside;
 
-public sealed partial class MainPage : Page
+public sealed partial class MainPage : Page, IContentControlProvider
 {
     public MainPage()
     {
-        this
-            .Background(Theme.Brushes.Background.Default)
-			.DataContext(new MainViewModel(), (page, viewModel) => page
+        this.DataContext<MainViewModel>((page, viewModel) => page
+				.Background(Theme.Brushes.Background.Default)
+				.NavigationCacheMode(NavigationCacheMode.Required)
 				.Content(new Grid()
 					.RowDefinitions("*, 4*")
 					.Children(
@@ -23,7 +23,7 @@ public sealed partial class MainPage : Page
 						new Grid()
 							.ColumnDefinitions("3*, *")
 							.Children(
-								BasicBorder(new TextBlock().Text("Hello Uno Platform!")).Grid(column: 0),
+								BasicBorder(new TextBlock().Text(() => viewModel.Greet)).Grid(column: 0),
 								BasicBorder(
 									new ListView()
 										.Background(Theme.Brushes.Background.Default)
@@ -35,6 +35,8 @@ public sealed partial class MainPage : Page
 				)
 			);
     }
+
+	public ContentControl ContentControl {get;}
 
 	private static TextBlock LogMessageTemplate(ClientLogMessage message) => new TextBlock()
 		.Text(() => message, message => $"{message.LogTime:HH:mm:ss} {message.Text}")
