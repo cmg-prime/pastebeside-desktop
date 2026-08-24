@@ -1,13 +1,17 @@
 ﻿using PasteBeside.ClientFriendlyLog;
+using PasteBeside.HandshakeHub;
 
 namespace PasteBeside;
 
 internal partial record MainModel
 {
-	public MainModel(ClientLog clientLog)
+	public MainModel(ClientLog clientLog, HandshakeHubService hubService)
 	{
-		ClientLog = State.Value(this, () => clientLog);
+		Messages = State.Value(this, () => clientLog.Messages);
+		LocalParticipant = State.Value(this, () => hubService.LocalParticipant);
 	}
 
-	public IState<ClientLog> ClientLog { get; }
+	public IState<IReadOnlyList<ClientLogMessage>> Messages { get; }
+	public IState<Participant> LocalParticipant { get; }
+
 }

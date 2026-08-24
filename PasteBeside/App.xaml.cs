@@ -1,6 +1,7 @@
 using System;
 using Microsoft.Extensions.Logging;
 using PasteBeside.ClientFriendlyLog;
+using PasteBeside.HandshakeHub;
 using Uno.Extensions.Navigation;
 using Uno.Resizetizer;
 
@@ -37,7 +38,10 @@ public partial class App : Application
 			.Configure(host => host
 				.ConfigureServices((context, services) =>
 				{
-					services.AddSingleton<ClientLog>();
+					services
+                        .AddSingleton<ClientLog>()
+                        .AddSingleton((provider) => 
+                            new HandshakeHubService("TODO: inject endpoint from config", provider.Get<ClientLog>()!));
 				})
 				.UseNavigation(ReactiveViewModelMappings.ViewModelMappings, RegisterRoutes)
 			);
