@@ -1,3 +1,4 @@
+using BoundaryModels;
 using Microsoft.AspNetCore.SignalR.Client;
 using PasteBeside.ClientFriendlyLog;
 

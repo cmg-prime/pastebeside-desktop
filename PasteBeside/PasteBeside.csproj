@@ -36,5 +36,8 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\BoundaryModels\BoundaryModels.csproj" />
+  </ItemGroup>
 
 </Project>

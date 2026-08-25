@@ -1,4 +1,4 @@
-namespace PasteBeside.HandshakeHub;
+namespace BoundaryModels;
 
 public class Participant
 {

@@ -11,4 +11,8 @@
     <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\BoundaryModels\BoundaryModels.csproj" />
+  </ItemGroup>
+
 </Project>

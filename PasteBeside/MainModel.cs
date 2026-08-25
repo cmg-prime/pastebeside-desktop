@@ -1,4 +1,5 @@
-﻿using PasteBeside.ClientFriendlyLog;
+﻿using BoundaryModels;
+using PasteBeside.ClientFriendlyLog;
 using PasteBeside.HandshakeHub;
 
 namespace PasteBeside;
