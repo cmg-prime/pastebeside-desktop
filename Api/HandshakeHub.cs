@@ -21,7 +21,7 @@ public class HandshakeHub: Hub<HandshakeClient>
             HandshakeId = handshakeIdentifier
         };
         //TODO: rename ReadyForHandshake to HandshakeInitialized
-        await Clients.Caller.ReadyForHandshake(handshakeIdentifier, newParticipant);
+        await Clients.Caller.HandshakeInitialized(handshakeIdentifier, newParticipant);
 
         _participantsByConnectionId[Context.ConnectionId] = newParticipant;
         _participantsById[participantId] = newParticipant;
@@ -87,7 +87,7 @@ public class HandshakeHub: Hub<HandshakeClient>
             leavingParticipant.HandshakeId = GenerateHandshakeIdentifier();
             _participantsByIdByHandshakeId[leavingParticipant.HandshakeId] = new Dictionary<string, Participant>(){ { leavingParticipant.Id, leavingParticipant }};
             notificationTasks.Add(Clients.Caller.AbandonedHandshake(handshakeId));
-            notificationTasks.Add(Clients.Caller.ReadyForHandshake(leavingParticipant.HandshakeId, leavingParticipant));
+            notificationTasks.Add(Clients.Caller.HandshakeInitialized(leavingParticipant.HandshakeId, leavingParticipant));
 
             if(participants.Count < 1)
             {

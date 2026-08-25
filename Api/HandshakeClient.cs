@@ -5,7 +5,7 @@ namespace Api;
 public interface HandshakeClient
 {
     Task AvailableHandshakesFound(IList<string> handshakeIds);
-    Task ReadyForHandshake(string handshakeId, Participant localPeer);
+    Task HandshakeInitialized(string handshakeId, Participant localPeer);
     Task JoiningHandshake(string handshakeId, Participant remotePeer);
     Task PeerJoiningHandshake(Participant remotePeer);
     Task AbandonedHandshake(string handshakeId);

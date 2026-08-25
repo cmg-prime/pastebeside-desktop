@@ -39,7 +39,7 @@ public class HandshakeHubService
             _availableHandshakes = handshakeIds;
         });
 
-        _connection.On(HandshakeHubEvent.ReadyForHandshake, async (string handshakeId, Participant participant) =>
+        _connection.On(HandshakeHubEvent.HandshakeInitialized, async (string handshakeId, Participant participant) =>
         {
             HandshakeId = handshakeId;
             _availableHandshakes.Add(handshakeId);
