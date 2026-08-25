@@ -2,6 +2,7 @@ namespace BoundaryModels;
 
 public class Participant
 {
+    //TODO: rename parameter to just 'id'
     public Participant(string userId, string? displayName = null)
     {
         Id = userId;
