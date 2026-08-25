@@ -1,4 +1,3 @@
-
 namespace Api;
 
 public class Program
@@ -19,14 +18,25 @@ public class Program
         if (app.Environment.IsDevelopment())
         {
             app.MapOpenApi();
+            app.UseSwaggerUI(options =>
+            {
+                options.SwaggerEndpoint("/openapi/v1.json", "v1");
+            });
         }
 
         app.UseHttpsRedirection();
 
-        app.UseAuthorization();
+        var corsOrigins = app.Configuration.GetValue<string>("CorsOrigins");
+        var allowedOrigins = corsOrigins!.Split(",");
+        app.UseCors(options =>
+        {
+            options.WithOrigins(allowedOrigins);
+            options.AllowAnyHeader();
+            options.AllowAnyMethod();
+            options.AllowCredentials();
+        }); 
 
-
-        app.MapControllers();
+        app.MapHub<HandshakeHub>("/handshakeHub");
 
         app.Run();
     }
