@@ -12,5 +12,6 @@ public class Participant
     public string Id { get; }
     public string DisplayName { get; }
     public string? ConnectionId { get; set; }
+    //TOOD: not actually nullable
     public string? HandshakeId { get; set; }
 }

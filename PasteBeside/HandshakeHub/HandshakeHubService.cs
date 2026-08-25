@@ -73,7 +73,7 @@ public class HandshakeHubService
     public async Task JoinHandshake()
     {
         _clientLog.Info("Invoking JoinHandshake...");
-        await (await GuaranteeConnection()).InvokeAsync(HandshakeHubEndpoint.JoinHandshake, HandshakeId, LocalParticipant.Id, LocalParticipant.DisplayName);
+        await (await GuaranteeConnection()).InvokeAsync(HandshakeHubEndpoint.JoinHandshake, HandshakeId, LocalParticipant.Id);
     }
 
     public async Task AbandonHandshake()
