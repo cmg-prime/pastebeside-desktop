@@ -14,7 +14,7 @@ public class HandshakeHub: Hub<HandshakeClient>
 
     public async Task InitializePeer(string participantId, string participantDisplayName)
     {
-        var handshakeIdentifier = GenerateHandshakeIdentifier();        
+        var handshakeIdentifier = HandshakeIdentifier.New();        
         var newParticipant = new Participant(participantId, participantDisplayName)
         {
             ConnectionId = Context.ConnectionId,
@@ -99,7 +99,7 @@ public class HandshakeHub: Hub<HandshakeClient>
 
             participants.Remove(participantId);
             var leavingParticipant = _participantsById[participantId];
-            leavingParticipant.HandshakeId = GenerateHandshakeIdentifier();
+            leavingParticipant.HandshakeId = HandshakeIdentifier.New();
             _participantsByIdByHandshakeId[leavingParticipant.HandshakeId] = new Dictionary<string, Participant>(){ { leavingParticipant.Id, leavingParticipant }};
             notificationTasks.Add(Clients.Caller.AbandonedHandshake(handshakeId));
             notificationTasks.Add(Clients.Caller.PeerInitialized(leavingParticipant.HandshakeId, leavingParticipant));
@@ -122,18 +122,5 @@ public class HandshakeHub: Hub<HandshakeClient>
 		}
 		await Task.WhenAll(notificationTasks);
 	}
-
-    private static string GenerateHandshakeIdentifier()
-    {
-        var random = new Random();
-        var adjectives = new List<string>(["Big", "Small"]);
-        var nouns = new List<string>(["Thing", "Trinket"]);
-        var randomAdjectiveIndex = random.Next(0, adjectives.Count);
-        var randomNounIndex = random.Next(0, nouns.Count);
-
-        var adjective = adjectives[randomAdjectiveIndex];
-        var noun = nouns[randomNounIndex];
-        return $"{adjective}-{noun}-{random.Next(0, 10000)}";
-    }
 
 }
