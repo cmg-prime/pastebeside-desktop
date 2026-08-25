@@ -34,12 +34,12 @@ public class HandshakeHubService
     //TODO: add hub events & handlers for RTC negotiation steps.
     private void RegisterSignalHandlers()
     {
-        _connection.On(HandshakeHubEvent.AvailableHandshakesFound, async (IList<string> handshakeIds) =>
+        _connection.On(nameof(HandshakeClient.AvailableHandshakesFound), async (IList<string> handshakeIds) =>
         {
             _availableHandshakes = handshakeIds;
         });
 
-        _connection.On(HandshakeHubEvent.HandshakeInitialized, async (string handshakeId, Participant participant) =>
+        _connection.On(nameof(HandshakeClient.PeerInitialized), async (string handshakeId, Participant participant) =>
         {
             HandshakeId = handshakeId;
             _availableHandshakes.Add(handshakeId);
@@ -47,27 +47,27 @@ public class HandshakeHubService
             _clientLog.Success($"Primed handshake ${HandshakeId}!");
         });
 
-        _connection.On(HandshakeHubEvent.JoiningHandshake, async (string handshakeId, Participant peer) =>
+        _connection.On(nameof(HandshakeClient.JoiningHandshake), async (string handshakeId, Participant peer) =>
         {
             HandshakeId = handshakeId;
             _clientLog.Success($"Joining handshake ${handshakeId} with peer ${peer.DisplayName}!");
             //TODO: process RTC offer, send answer.
         });
 
-        _connection.On(HandshakeHubEvent.PeerJoiningHandshake, async (Participant peer) =>
+        _connection.On(nameof(HandshakeClient.PeerJoiningHandshake), async (Participant peer) =>
         {
             _clientLog.Success($"Peer ${peer.DisplayName} joined handshake!");
             //TODO: send RTC offer.
         });
 
-        _connection.On<string>(HandshakeHubEvent.AbandonedHandshake, ProcessAbandonedHandshake);
-        _connection.On<string>(HandshakeHubEvent.PeerAbandonedHandshake, ProcessAbandonedHandshake);
+        _connection.On<string>(nameof(HandshakeClient.AbandonedHandshake), ProcessAbandonedHandshake);
+        _connection.On<string>(nameof(HandshakeClient.PeerAbandonedHandshake), ProcessAbandonedHandshake);
     }
 
-    public async Task InitializeHandshake()
+    public async Task InitializePeer()
     {
-        _clientLog.Info("Invoking InitializeHandshake...");
-        await (await GuaranteeConnection()).InvokeAsync(HandshakeHubEndpoint.InitializeHandshake, LocalParticipant.Id, LocalParticipant.DisplayName);
+        _clientLog.Info("Invoking InitializePeer...");
+        await (await GuaranteeConnection()).InvokeAsync(HandshakeHubEndpoint.InitializePeer, LocalParticipant.Id, LocalParticipant.DisplayName);
     }
 
     public async Task JoinHandshake()

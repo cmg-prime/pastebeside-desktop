@@ -12,7 +12,7 @@ public class HandshakeHub: Hub<HandshakeClient>
     private static readonly ConcurrentDictionary<string, Participant> _participantsById = new();
     private static readonly ConcurrentDictionary<string, IDictionary<string, Participant>> _participantsByIdByHandshakeId = new();
 
-    public async Task InitializeHandshake(string participantId, string participantDisplayName)
+    public async Task InitializePeer(string participantId, string participantDisplayName)
     {
         var handshakeIdentifier = GenerateHandshakeIdentifier();        
         var newParticipant = new Participant(participantId, participantDisplayName)
@@ -21,7 +21,7 @@ public class HandshakeHub: Hub<HandshakeClient>
             HandshakeId = handshakeIdentifier
         };
         //TODO: rename ReadyForHandshake to HandshakeInitialized
-        await Clients.Caller.HandshakeInitialized(handshakeIdentifier, newParticipant);
+        await Clients.Caller.PeerInitialized(handshakeIdentifier, newParticipant);
 
         _participantsByConnectionId[Context.ConnectionId] = newParticipant;
         _participantsById[participantId] = newParticipant;
@@ -87,7 +87,7 @@ public class HandshakeHub: Hub<HandshakeClient>
             leavingParticipant.HandshakeId = GenerateHandshakeIdentifier();
             _participantsByIdByHandshakeId[leavingParticipant.HandshakeId] = new Dictionary<string, Participant>(){ { leavingParticipant.Id, leavingParticipant }};
             notificationTasks.Add(Clients.Caller.AbandonedHandshake(handshakeId));
-            notificationTasks.Add(Clients.Caller.HandshakeInitialized(leavingParticipant.HandshakeId, leavingParticipant));
+            notificationTasks.Add(Clients.Caller.PeerInitialized(leavingParticipant.HandshakeId, leavingParticipant));
 
             if(participants.Count < 1)
             {
