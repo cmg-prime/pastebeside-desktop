@@ -20,7 +20,6 @@ public class HandshakeHub: Hub<HandshakeClient>
             ConnectionId = Context.ConnectionId,
             HandshakeId = handshakeIdentifier
         };
-        //TODO: rename ReadyForHandshake to HandshakeInitialized
         await Clients.Caller.PeerInitialized(handshakeIdentifier, newParticipant);
 
         _participantsByConnectionId[Context.ConnectionId] = newParticipant;
@@ -32,8 +31,14 @@ public class HandshakeHub: Hub<HandshakeClient>
     }
 
     public async Task AbandonHandshake(string handshakeId, string participantId)
+        => await DisconnectGracefully(Context.ConnectionId, handshakeId, participantId);
+
+    public override async Task OnDisconnectedAsync(Exception? exception)
     {
-        //TODO: call AbandonedHandshake/PeerAbandonedHandshake
+        if(_participantsByConnectionId.TryGetValue(Context.ConnectionId, out var participant))
+            await DisconnectGracefully(Context.ConnectionId, participant.HandshakeId!, participant.Id);
+ 
+        await base.OnDisconnectedAsync(exception);
     }
 
     public async Task JoinHandshake(string handshakeId, string participantId)
@@ -53,7 +58,7 @@ public class HandshakeHub: Hub<HandshakeClient>
 
             //NB: ensure participant can shake no other hands
             if(joiningParticipant.HandshakeId != handshakeId)
-                tasks.Add(CancelHandshake(joiningParticipant.HandshakeId!, participantId));
+                tasks.Add(ExtractParticipantFromHandshake(joiningParticipant.HandshakeId!, participantId));
 
             //NB: if participant is known to exist, but not on this connection, update the in-memory cache.
             if(joiningParticipant.ConnectionId != Context.ConnectionId)
@@ -73,7 +78,17 @@ public class HandshakeHub: Hub<HandshakeClient>
         await Task.WhenAll(tasks);
     }
 
-	private async Task CancelHandshake(string handshakeId, string participantId)
+    private async Task DisconnectGracefully(string connectionId, string handshakeId, string participantId)
+    {
+		await ExtractParticipantFromHandshake(handshakeId, participantId);
+        lock (_leaveLock)
+        {
+            _participantsByConnectionId.TryRemove(connectionId, out _);
+			_participantsById.TryRemove(participantId, out _);
+        }
+    }
+
+	private async Task ExtractParticipantFromHandshake(string handshakeId, string participantId)
 	{
 		var notificationTasks = new List<Task>();
 		lock (_leaveLock)
