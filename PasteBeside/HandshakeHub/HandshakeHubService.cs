@@ -1,5 +1,6 @@
 using BoundaryModels;
 using Microsoft.AspNetCore.SignalR.Client;
+using Microsoft.Extensions.Options;
 using PasteBeside.ClientFriendlyLog;
 
 namespace PasteBeside.HandshakeHub;
@@ -11,11 +12,11 @@ public class HandshakeHubService: AsyncInitialization
     private readonly HubConnection _connection;
     private IList<string> _availableHandshakes;
 
-    public HandshakeHubService(string apiUrl, ClientLog clientLog)
+    public HandshakeHubService(IOptions<HubOptions> configOptions, ClientLog clientLog)
     {
         _availableHandshakes = [];
         _clientLog = clientLog;
-        _hubUrl = $"{apiUrl}/handshakeHub";
+        _hubUrl = $"{configOptions.Value.HubBaseUrl}/handshakeHub";
         _connection = new HubConnectionBuilder()
             .WithUrl(_hubUrl)
             .WithAutomaticReconnect()

@@ -32,9 +32,11 @@
 	  Navigation;
 	  Configuration;
     </UnoFeatures>
+    <UserSecretsId>157b1c3a-bf0e-44ea-9353-848a86edc5ec</UserSecretsId>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\BoundaryModels\BoundaryModels.csproj" />

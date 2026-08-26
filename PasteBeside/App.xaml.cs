@@ -4,6 +4,7 @@ using PasteBeside.ClientFriendlyLog;
 using PasteBeside.HandshakeHub;
 using Uno.Extensions.Navigation;
 using Uno.Resizetizer;
+using Microsoft.Extensions.Configuration;
 
 namespace PasteBeside;
 
@@ -36,12 +37,18 @@ public partial class App : Application
 			//NB: adds toolkit nav controls (as opposed to registering routes - see below).
 			.UseToolkitNavigation()
 			.Configure(host => host
+                .UseConfiguration(configure: unoConfigBuilder => unoConfigBuilder
+                    .EmbeddedSource<App>()
+#if DEBUG
+                    .ConfigureAppConfiguration((context, builder) => builder.AddUserSecrets<App>(false))
+#endif
+                )
 				.ConfigureServices((context, services) =>
 				{
 					services
+                        .Configure<HubOptions>(context.Configuration.GetSection(nameof(HubOptions)))
                         .AddSingleton<ClientLog>()
-                        .AddSingleton((provider) => 
-                            new HandshakeHubService("TODO: inject endpoint from config", provider.GetRequiredService<ClientLog>()!));
+                        .AddSingleton<HandshakeHubService>();
 				})
 				.UseNavigation(ReactiveViewModelMappings.ViewModelMappings, RegisterRoutes)
 			);
