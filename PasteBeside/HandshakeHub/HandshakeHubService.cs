@@ -60,7 +60,7 @@ public class HandshakeHubService: AsyncInitialization
             HandshakeId = handshakeId;
             _availableHandshakes.Add(handshakeId);
             LocalParticipant = participant;
-            await _clientLog.Success($"Primed handshake ${HandshakeId}!");
+            await _clientLog.Success($"Initialized handshake {HandshakeId}!");
         });
 
         _connection.On(nameof(HandshakeClient.JoiningHandshake), async (string handshakeId, Participant peer) =>
