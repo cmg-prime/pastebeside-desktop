@@ -15,10 +15,11 @@ public static class ParticipantIdentifier
         var random = new Random();
         var length = random.Next(_minLengthInclusive, _maxLengthExclusive);
         var stringBuilder = new StringBuilder();
-        for(var i = 0; i < length; i++)
+        for(var nameIndex = 0; nameIndex < length; nameIndex++)
         {
             var source = random.NextDouble() < _vowelChance ? _vowels : _consonants;
-            stringBuilder.Append(source[i]);
+            var characterIndex = random.Next(0, source.Length);
+            stringBuilder.Append(source[characterIndex]);
         }
         stringBuilder.Append(DateTime.Now.ToString("-HHmmss"));
         var identifier = stringBuilder.ToString();

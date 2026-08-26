@@ -41,7 +41,7 @@ public partial class App : Application
 					services
                         .AddSingleton<ClientLog>()
                         .AddSingleton((provider) => 
-                            new HandshakeHubService("TODO: inject endpoint from config", provider.Get<ClientLog>()!));
+                            HandshakeHubService.New("TODO: inject endpoint from config", provider.Get<ClientLog>()!));
 				})
 				.UseNavigation(ReactiveViewModelMappings.ViewModelMappings, RegisterRoutes)
 			);

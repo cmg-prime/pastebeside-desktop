@@ -11,7 +11,10 @@ public class HandshakeHubService
     private readonly HubConnection _connection;
     private IList<string> _availableHandshakes;
 
-    public HandshakeHubService(string apiUrl, ClientLog clientLog)
+    public static HandshakeHubService New(string apiUrl, ClientLog clientLog)
+        => new(apiUrl, clientLog);
+
+    private HandshakeHubService(string apiUrl, ClientLog clientLog)
     {
         _availableHandshakes = [];
         _clientLog = clientLog;
