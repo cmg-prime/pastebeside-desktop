@@ -41,7 +41,7 @@ public partial class App : Application
 					services
                         .AddSingleton<ClientLog>()
                         .AddSingleton((provider) => 
-                            HandshakeHubService.New("TODO: inject endpoint from config", provider.Get<ClientLog>()!));
+                            new HandshakeHubService("TODO: inject endpoint from config", provider.GetRequiredService<ClientLog>()!));
 				})
 				.UseNavigation(ReactiveViewModelMappings.ViewModelMappings, RegisterRoutes)
 			);
@@ -73,10 +73,13 @@ public partial class App : Application
         }
 
         MainWindow.SetWindowIcon();
-        // Ensure the current window is active
-        // MainWindow.Activate();
 
 		await builder.NavigateAsync<Shell>();
+
+        //NB: ensure async initialization completes. 
+        var host = builder.Build();
+        var hubService = host.Services.GetRequiredService<HandshakeHubService>();
+        await hubService!.Initialization;   
     }
 
 	private static void RegisterRoutes(IViewRegistry views, IRouteRegistry routes)
