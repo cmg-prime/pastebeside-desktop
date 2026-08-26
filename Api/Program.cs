@@ -26,16 +26,6 @@ public class Program
 
         app.UseHttpsRedirection();
 
-        var corsOrigins = app.Configuration.GetValue<string>("CorsOrigins");
-        var allowedOrigins = corsOrigins!.Split(",");
-        app.UseCors(options =>
-        {
-            options.WithOrigins(allowedOrigins);
-            options.AllowAnyHeader();
-            options.AllowAnyMethod();
-            options.AllowCredentials();
-        }); 
-
         app.MapHub<HandshakeHub>("/handshakeHub");
 
         app.Run();
