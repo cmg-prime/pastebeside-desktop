@@ -2,18 +2,24 @@ namespace PasteBeside.ClientFriendlyLog;
 
 public record ClientLog
 {
-	private IList<ClientLogMessage> _messages = [];
-	public IReadOnlyList<ClientLogMessage> Messages { get { return [.._messages]; } }
+	public IState<IReadOnlyList<ClientLogMessage>> Messages { get; }
 
 	public ClientLog()
 	{
-		_messages = [new ClientLogMessage("PasteBeside started!", ClientLogType.Success, DateTime.Now)];
+		Messages = State<IReadOnlyList<ClientLogMessage>>
+			.Value(this, () => [new ClientLogMessage("PasteBeside started!", ClientLogType.Success, DateTime.Now)]);
 	}
 
-	public ClientLog Info(string message) => Initialize(message);
-	public ClientLog Error(string message) => Initialize(message, ClientLogType.Error);
-	public ClientLog Success(string message) => Initialize(message, ClientLogType.Success);
+	public async ValueTask Info(string message)
+		=> await Update(message);
 
-	private ClientLog Initialize(string message, ClientLogType type = ClientLogType.Info) 
-		=> this with { _messages = [..Messages, new ClientLogMessage(message, type, DateTime.Now) ] };
+	public async ValueTask Error(string message)
+		=> await Update(message, ClientLogType.Error);
+
+	public async ValueTask Success(string message) 
+		=> await Update(message, ClientLogType.Success);
+
+	private async ValueTask Update(string message, ClientLogType type = ClientLogType.Info)
+		=> await Messages.UpdateAsync(current => [..current!, new ClientLogMessage(message, type, DateTime.Now)]);
+
 }
