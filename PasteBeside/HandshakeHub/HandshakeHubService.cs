@@ -22,7 +22,7 @@ public class HandshakeHubService
             .ConfigureLogging(builder => builder.SetMinimumLevel(LogLevel.Error))
             .Build();
 
-        LocalParticipant = new Participant("TODO: pseudorandomly generate participant identifier");
+        LocalParticipant = new Participant(ParticipantIdentifier.New());
 
         RegisterSignalHandlers();
     }
