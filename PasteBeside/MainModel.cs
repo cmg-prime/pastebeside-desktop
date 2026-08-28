@@ -9,7 +9,7 @@ internal partial record MainModel
 	public MainModel(ClientLog clientLog, HandshakeHubService hubService)
 	{
 		Messages = clientLog.Messages;
-		LocalParticipant = State.Value(this, () => hubService.LocalParticipant);
+		LocalParticipant = hubService.LocalParticipant;
 	}
 
 	public IState<IReadOnlyList<ClientLogMessage>> Messages { get; }

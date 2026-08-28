@@ -16,8 +16,8 @@ public sealed partial class MainPage : Page
 							.ColumnDefinitions("*,*,*,*")
 							.Children(
 								BasicBorder(new TextBlock().Text("Block one!")).Grid(column: 0),
-								BasicBorder(new TextBlock().Text(() => viewModel.LocalParticipant.Id)).Grid(column: 1),
-								BasicBorder(new TextBlock().Text("Block three!")).Grid(column: 2),
+								BasicBorder(new TextBlock().Text(() => viewModel.LocalParticipant, participant => participant.Id)).Grid(column: 1),
+								BasicBorder(new TextBlock().Text(() => viewModel.LocalParticipant, participant => participant.HandshakeId ?? "(none)")).Grid(column: 2),
 								BasicBorder(new TextBlock().Text("Block four!")).Grid(column: 3)
 						).Grid(row: 0),
 						new Grid()

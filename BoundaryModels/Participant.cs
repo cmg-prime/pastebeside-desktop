@@ -1,6 +1,6 @@
 namespace BoundaryModels;
 
-public class Participant
+public record Participant
 {
     public Participant(string id, string? displayName = null)
     {

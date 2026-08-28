@@ -23,7 +23,7 @@ public class HandshakeHubService: AsyncInitialization
             .ConfigureLogging(builder => builder.SetMinimumLevel(LogLevel.Error))
             .Build();
 
-        LocalParticipant = new Participant(ParticipantIdentifier.New());
+        LocalParticipant = State.Value(this, () => new Participant(ParticipantIdentifier.New()));
 
         RegisterSignalHandlers();
         Initialization = InitializePeer();
@@ -31,20 +31,21 @@ public class HandshakeHubService: AsyncInitialization
 
     public Task Initialization { get; }
 
-    public string? HandshakeId { get; private set; }
-    public Participant LocalParticipant { get; private set; }
+    public IState<Participant> LocalParticipant { get; private set; }
     public IReadOnlyList<string> AvailableHandshakes { get { return [.._availableHandshakes]; } }
 
     public async Task JoinHandshake()
     {
         await _clientLog.Info("Invoking JoinHandshake...");
-        await (await GuaranteeConnection()).InvokeAsync(HandshakeHubEndpoint.JoinHandshake, HandshakeId, LocalParticipant.Id);
+		var participantSnapshot = (await LocalParticipant)!;
+        await (await GuaranteeConnection()).InvokeAsync(HandshakeHubEndpoint.JoinHandshake, participantSnapshot.HandshakeId, participantSnapshot.Id);
     }
 
     public async Task AbandonHandshake()
     {
         await _clientLog.Info("Invoking AbandonHandshake...");
-        await (await GuaranteeConnection()).InvokeAsync(HandshakeHubEndpoint.AbandonHandshake, HandshakeId, LocalParticipant.Id);
+		var participantSnapshot = (await LocalParticipant)!;
+        await (await GuaranteeConnection()).InvokeAsync(HandshakeHubEndpoint.AbandonHandshake, participantSnapshot.HandshakeId, participantSnapshot.Id);
     }
 
     //TODO: add hub events & handlers for RTC negotiation steps.
@@ -57,15 +58,15 @@ public class HandshakeHubService: AsyncInitialization
 
         _connection.On(nameof(HandshakeClient.PeerInitialized), async (string handshakeId, Participant participant) =>
         {
-            HandshakeId = handshakeId;
             _availableHandshakes.Add(handshakeId);
-            LocalParticipant = participant;
-            await _clientLog.Success($"Initialized handshake {HandshakeId}!");
+            await LocalParticipant.UpdateAsync((current) => current! with { HandshakeId = participant.HandshakeId, ConnectionId = participant.ConnectionId });
+			var participantSnapshot = (await LocalParticipant)!;
+            await _clientLog.Success($"Initialized handshake {participantSnapshot.HandshakeId}!");
         });
 
         _connection.On(nameof(HandshakeClient.JoiningHandshake), async (string handshakeId, Participant peer) =>
         {
-            HandshakeId = handshakeId;
+			await LocalParticipant.UpdateAsync(current => current! with { HandshakeId = handshakeId });
             await _clientLog.Success($"Joining handshake ${handshakeId} with peer ${peer.DisplayName}!");
             //TODO: process RTC offer, send answer.
         });
@@ -85,7 +86,8 @@ public class HandshakeHubService: AsyncInitialization
         await _clientLog.Info("Invoking InitializePeer...");
         try
         {
-            await (await GuaranteeConnection()).InvokeAsync(HandshakeHubEndpoint.InitializePeer, LocalParticipant.Id, LocalParticipant.DisplayName);            
+			var participantSnapshot = (await LocalParticipant)!;
+            await (await GuaranteeConnection()).InvokeAsync(HandshakeHubEndpoint.InitializePeer, participantSnapshot.Id, participantSnapshot.DisplayName);            
         }
         catch(Exception e)
         {
@@ -95,9 +97,8 @@ public class HandshakeHubService: AsyncInitialization
 
     private async Task ProcessAbandonedHandshake(string handshakeId)
     {
-        HandshakeId = handshakeId;
         _availableHandshakes.Remove(handshakeId);
-        await _clientLog.Info($"Handshake ${HandshakeId} abandoned.");
+        await _clientLog.Info($"Handshake ${handshakeId} abandoned.");
     }
 
     private async Task<HubConnection> GuaranteeConnection()
