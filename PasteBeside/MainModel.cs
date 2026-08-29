@@ -8,7 +8,7 @@ internal partial record MainModel
 {
 	private readonly HandshakeHubService _hubService;
 
-	public MainModel(ClientLogger clientLog, HubServiceFactory hubServiceFactory, Participant localPeer)
+	public MainModel(ClientLogger clientLogger, HubServiceFactory hubServiceFactory, Participant localPeer)
 	{
 		_hubService = hubServiceFactory.Create(
 			async handshakeIds => await AvailableHandshakes!.UpdateAsync(_ => handshakeIds),
@@ -16,32 +16,44 @@ internal partial record MainModel
 			{
 				await _hubService!.Initialization;
 				await AvailableHandshakes!.UpdateAsync(existing => [..existing!, handshakeId]);
-				await LocalParticipant!.UpdateAsync((current) => 
+				await LocalPeer!.UpdateAsync((current) => 
 					current! with { 
 						HandshakeId = localParticipant.HandshakeId,
 						ConnectionId = localParticipant.ConnectionId 
 					});
-				await clientLog.Success($"Initialized handshake {localParticipant.HandshakeId}!");
+				await clientLogger.Success($"Initialized handshake {localParticipant.HandshakeId}!");
 			},
 			async (handshakeId, remotePeer) =>
 			{
 				await _hubService!.Initialization;
-				await LocalParticipant!.UpdateAsync(current => current! with { HandshakeId = handshakeId });
-				await clientLog.Success($"Joining handshake ${handshakeId} with peer ${remotePeer.DisplayName}!");
+				await LocalPeer!.UpdateAsync(current => current! with { HandshakeId = handshakeId });
+				await RemotePeer!.UpdateAsync(current => remotePeer);
+
+				await clientLogger.Success($"Joining handshake ${handshakeId} with peer ${remotePeer.DisplayName}!");
 				//TODO: process RTC offer, send answer.
 			},
 			async remotePeer =>
 			{
 				await _hubService!.Initialization;
-				await clientLog.Success($"Peer ${remotePeer.DisplayName} joined handshake!");
+				await RemotePeer!.UpdateAsync(current => remotePeer);
+
+				await clientLogger.Success($"Peer ${remotePeer.DisplayName} joined handshake!");
 				//TODO: send RTC offer.
 			},
-			handshakeId => OnAbandonedDelegate(handshakeId, $"Handshake ${handshakeId} abandoned."),
-			handshakeId => OnAbandonedDelegate(handshakeId, $"Handshake ${handshakeId} abandoned by remote peer.")
+			async handshakeId => {
+				await OnAbandonedDelegate(handshakeId, $"Handshake ${handshakeId} abandoned.");
+				await LocalPeer!.UpdateAsync(peer =>
+				{
+					peer!.HandshakeId = null;
+					return peer;
+				});
+			},
+			async handshakeId => await OnAbandonedDelegate(handshakeId, $"Handshake ${handshakeId} abandoned by remote peer.")
 		);
 		
-		Messages = clientLog.Messages;
-		LocalParticipant = State<Participant>.Value(this, () => localPeer);
+		Messages = clientLogger.Messages;
+		LocalPeer = State<Participant>.Value(this, () => localPeer);
+		RemotePeer = State<Participant>.Empty(this);
 		AvailableHandshakes = State<IList<string>>.Value(this, () => []);
 
 		async Task OnAbandonedDelegate(string handshakeId, string logMessage)
@@ -52,12 +64,14 @@ internal partial record MainModel
 				existing!.Remove(handshakeId);
 				return existing;
 			});
-			await clientLog.Info($"Handshake ${handshakeId} abandoned by remote peer.");
+			await RemotePeer!.UpdateAsync(peer => null);
+			await clientLogger.Info(logMessage);
 		};
 	}
 
 	public IState<IReadOnlyList<ClientLogMessage>> Messages { get; }
-	public IState<Participant> LocalParticipant { get; }
+	public IState<Participant> LocalPeer { get; }
+	public IState<Participant> RemotePeer { get; }
 	public IState<IList<string>> AvailableHandshakes { get; }
 
 }

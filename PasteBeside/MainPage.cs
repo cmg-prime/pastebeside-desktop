@@ -1,3 +1,4 @@
+using Microsoft.UI.Text;
 using PasteBeside.ClientFriendlyLog;
 
 namespace PasteBeside;
@@ -13,11 +14,22 @@ public sealed partial class MainPage : Page
 					.RowDefinitions("*, 4*")
 					.Children(
 						new Grid()
-							.ColumnDefinitions("*,*,*,*")
+							.ColumnDefinitions("3*, 3*, 4*, 2*")
 							.Children(
 								BasicBorder(new TextBlock().Text("Block one!")).Grid(column: 0),
-								BasicBorder(new TextBlock().Text(() => viewModel.LocalParticipant, participant => participant.Id)).Grid(column: 1),
-								BasicBorder(new TextBlock().Text(() => viewModel.LocalParticipant, participant => participant.HandshakeId ?? "(none)")).Grid(column: 2),
+								BasicBorder(new TextBlock().Text(() => viewModel.LocalPeer, participant => participant.Id)).Grid(column: 1),
+								BasicBorder(new StackPanel()
+									.Children(
+										new TextBlock().Text("Handshake").FontSize(16).FontWeight(FontWeights.SemiBold),
+										new TextBlock().Text(
+											() => viewModel.LocalPeer, 
+											peer => $"Handshake ID: {peer.HandshakeId ?? "(none)"}"
+										),
+										new TextBlock().Text(
+											() => viewModel.RemotePeer, 
+											peer => $"Remote peer: {peer.Id ?? "(none)"}"
+										)
+									)).Grid(column: 2),
 								BasicBorder(new TextBlock().Text("Block four!")).Grid(column: 3)
 						).Grid(row: 0),
 						new Grid()
