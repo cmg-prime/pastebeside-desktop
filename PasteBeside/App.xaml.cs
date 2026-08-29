@@ -5,6 +5,7 @@ using PasteBeside.HandshakeHub;
 using Uno.Extensions.Navigation;
 using Uno.Resizetizer;
 using Microsoft.Extensions.Configuration;
+using BoundaryModels;
 
 namespace PasteBeside;
 
@@ -45,10 +46,12 @@ public partial class App : Application
                 )
 				.ConfigureServices((context, services) =>
 				{
+					var localPeer = new Participant(ParticipantIdentifier.New());
 					services
                         .Configure<HubOptions>(context.Configuration.GetSection(nameof(HubOptions)))
+						.AddSingleton(localPeer)
                         .AddSingleton<ClientLog>()
-                        .AddSingleton<HandshakeHubService>();
+                        .AddSingleton<HubServiceFactory>();
 				})
 				.UseNavigation(ReactiveViewModelMappings.ViewModelMappings, RegisterRoutes)
 			);
@@ -82,11 +85,6 @@ public partial class App : Application
         MainWindow.SetWindowIcon();
 
 		await builder.NavigateAsync<Shell>();
-
-        //NB: ensure async initialization completes. 
-        var host = builder.Build();
-        var hubService = host.Services.GetRequiredService<HandshakeHubService>();
-        await hubService!.Initialization;   
     }
 
 	private static void RegisterRoutes(IViewRegistry views, IRouteRegistry routes)

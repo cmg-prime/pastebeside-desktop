@@ -1,6 +1,6 @@
-using System.ComponentModel.DataAnnotations;
 using System.Text;
-using PasteBeside.HandshakeHub;
+
+namespace PasteBeside.HandshakeHub;
 
 public static class ParticipantIdentifier
 {
