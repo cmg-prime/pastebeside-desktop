@@ -50,7 +50,7 @@ public partial class App : Application
 					services
                         .Configure<HubOptions>(context.Configuration.GetSection(nameof(HubOptions)))
 						.AddSingleton(localPeer)
-                        .AddSingleton<ClientLog>()
+                        .AddSingleton<ClientLogger>()
                         .AddSingleton<HubServiceFactory>();
 				})
 				.UseNavigation(ReactiveViewModelMappings.ViewModelMappings, RegisterRoutes)

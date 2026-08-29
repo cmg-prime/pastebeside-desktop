@@ -1,10 +1,10 @@
 namespace PasteBeside.ClientFriendlyLog;
 
-public record ClientLog
+public record ClientLogger
 {
 	public IState<IReadOnlyList<ClientLogMessage>> Messages { get; }
 
-	public ClientLog()
+	public ClientLogger()
 	{
 		Messages = State<IReadOnlyList<ClientLogMessage>>
 			.Value(this, () => [new ClientLogMessage("PasteBeside started!", ClientLogType.Success, DateTime.Now)]);

@@ -9,7 +9,7 @@ public class HubServiceFactory
 {
 	private readonly SignalRHandshakeHubService _service;
 
-	public HubServiceFactory(IOptions<HubOptions> hubOptions, ClientLog clientLogger, Participant localPeer)
+	public HubServiceFactory(IOptions<HubOptions> hubOptions, ClientLogger clientLogger, Participant localPeer)
 		=> _service = new SignalRHandshakeHubService(hubOptions, clientLogger, localPeer);
 
 	public HandshakeHubService Create(OnAvailableHandshakes onAvailableHandshakes, OnPeerInitialized onPeerInitialized, OnJoiningHandshake onJoiningHandshake, OnPeerJoiningHandshake onPeerJoiningHandshake, OnAbandonedHandshake onAbandonedHandshake, OnPeerAbandonedHandshake onPeerAbandonedHandshake)
@@ -20,7 +20,7 @@ public class HubServiceFactory
 
 	private class SignalRHandshakeHubService: HandshakeHubService
 	{
-		private readonly ClientLog _clientLogger;
+		private readonly ClientLogger _clientLogger;
 		private readonly HubConnection _connection;
 
 		private OnAvailableHandshakes? _OnAvailableHandshakes;
@@ -30,7 +30,7 @@ public class HubServiceFactory
 		private OnAbandonedHandshake? _OnAbandonedHandshake;
 		private OnPeerAbandonedHandshake? _OnPeerAbandonedHandshake;
 
-		public SignalRHandshakeHubService(IOptions<HubOptions> configOptions, ClientLog clientLog, Participant localPeer)
+		public SignalRHandshakeHubService(IOptions<HubOptions> configOptions, ClientLogger clientLog, Participant localPeer)
 		{
 			_clientLogger = clientLog;
 			_connection = new HubConnectionBuilder()

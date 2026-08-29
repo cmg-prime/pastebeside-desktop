@@ -8,7 +8,7 @@ internal partial record MainModel
 {
 	private readonly HandshakeHubService _hubService;
 
-	public MainModel(ClientLog clientLog, HubServiceFactory hubServiceFactory, Participant localPeer)
+	public MainModel(ClientLogger clientLog, HubServiceFactory hubServiceFactory, Participant localPeer)
 	{
 		_hubService = hubServiceFactory.Create(
 			async handshakeIds => await AvailableHandshakes!.UpdateAsync(_ => handshakeIds),
