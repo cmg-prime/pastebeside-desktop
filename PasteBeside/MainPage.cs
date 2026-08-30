@@ -1,5 +1,6 @@
 using Microsoft.UI.Text;
 using PasteBeside.ClientFriendlyLog;
+using Uno.Extensions.Reactive.Bindings;
 
 namespace PasteBeside;
 
@@ -24,7 +25,15 @@ public sealed partial class MainPage : Page
 										)
 								).Grid(column: 0),
 								BasicBorder(
-									new TextBlock().Text(() => viewModel.LocalPeer, participant => participant.Id)
+									new StackPanel().Children(
+										new TextBlock().Text("Local peer").FontSize(16).FontWeight(FontWeights.SemiBold),
+										new TextBlock().Text(() => viewModel.LocalPeer.Id),
+										new TextBox().Text(text => text
+											.Binding(() => viewModel.LocalPeer.DisplayName)
+											.TwoWay()
+											.UpdateSourceTrigger(UpdateSourceTrigger.PropertyChanged)
+										)
+									)
 								).Grid(column: 1),
 								BasicBorder(
 									new StackPanel()
