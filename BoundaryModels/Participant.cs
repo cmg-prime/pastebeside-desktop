@@ -9,7 +9,7 @@ public record Participant
     }
 
     public string Id { get; }
-    public string DisplayName { get; }
+    public string DisplayName { get; set; }
     public string? ConnectionId { get; set; }
     public string? HandshakeId { get; set; }
 }

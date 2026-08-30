@@ -69,9 +69,6 @@ public sealed partial class MainPage : Page
 			);
     }
 
-	private static TextBlock HandshakeIdTemplate(string handshakeId) => new TextBlock()
-		.Text(() => handshakeId);
-
 	private static TextBlock LogMessageTemplate(ClientLogMessage message) => new TextBlock()
 		.Text(() => message, message => $"{message.LogTime:HH:mm:ss} {message.Text}")
 		.Foreground(() => message.Type, type => GetColor(type))
