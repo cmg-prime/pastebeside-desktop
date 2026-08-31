@@ -98,12 +98,7 @@ public class HandshakeHub: Hub<HandshakeClient>
                 return;
 
             participants.Remove(participantId);
-            var leavingParticipant = _participantsById[participantId];
-            leavingParticipant.HandshakeId = HandshakeIdentifier.New();
-            _participantsByIdByHandshakeId[leavingParticipant.HandshakeId] = new Dictionary<string, Participant>(){ { leavingParticipant.Id, leavingParticipant }};
             notificationTasks.Add(Clients.Caller.AbandonedHandshake(handshakeId));
-            notificationTasks.Add(Clients.Caller.PeerInitialized(leavingParticipant.HandshakeId, leavingParticipant));
-
             if(participants.Count < 1)
             {
                 _participantsByIdByHandshakeId.TryRemove(handshakeId, out _);
