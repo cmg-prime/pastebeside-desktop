@@ -15,7 +15,6 @@ internal partial record MainModel
 			async (handshakeId, localParticipant) => 
 			{
 				await _hubService!.Initialization;
-				await AvailableHandshakes!.UpdateAsync(existing => [..existing!, handshakeId]);
 				await LocalPeer!.UpdateAsync((current) => 
 					current! with { 
 						HandshakeId = localParticipant.HandshakeId,
