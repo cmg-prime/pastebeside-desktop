@@ -31,23 +31,26 @@ public sealed partial class MainPage : Page
 												)
 											).Grid(column: 0),
 											BasicBorder(
-												new StackPanel().Children(
-													new StackPanel().Children(
-														new TextBlock().Text("Local peer").FontSize(16).FontWeight(FontWeights.SemiBold),
-														new TextBlock().Text(() => viewModel.LocalPeer.Id)
-													),
-													new StackPanel().Children(
-														new TextBlock().Text("Handshake").FontSize(16).FontWeight(FontWeights.SemiBold),
-														new TextBlock().Text(
-															() => viewModel.LocalPeer, 
-															peer => $"Handshake ID: {peer.HandshakeId ?? "(none)"}"
+												new AutoLayout()
+													.Orientation(Orientation.Vertical)
+													.Justify(AutoLayoutJustify.SpaceBetween)
+													.Children(
+														new StackPanel().Children(
+															new TextBlock().Text("Local peer").FontSize(16).FontWeight(FontWeights.SemiBold),
+															new TextBlock().Text(() => viewModel.LocalPeer.Id)
 														),
-														new TextBlock().Text(
-															() => viewModel.RemotePeer, 
-															peer => $"Remote peer: {peer.Id ?? "(none)"}"
+														new StackPanel().Children(
+															new TextBlock().Text("Handshake").FontSize(16).FontWeight(FontWeights.SemiBold),
+															new TextBlock().Text(
+																() => viewModel.LocalPeer, 
+																peer => $"Handshake ID: {peer.HandshakeId ?? "(none)"}"
+															),
+															new TextBlock().Text(
+																() => viewModel.RemotePeer, 
+																peer => $"Remote peer: {peer.Id ?? "(none)"}"
+															)
 														)
 													)
-												)
 											).Grid(column: 1)
 										).Grid(row: 0),
 									BasicBorder(new TextBlock().Text("Hello, Uno!")).Grid(row: 1)
