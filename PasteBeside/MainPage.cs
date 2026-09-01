@@ -1,6 +1,5 @@
 using Microsoft.UI.Text;
 using PasteBeside.ClientFriendlyLog;
-using Uno.Extensions.Reactive.Bindings;
 
 namespace PasteBeside;
 
@@ -8,63 +7,58 @@ public sealed partial class MainPage : Page
 {
     public MainPage()
     {
-        this.DataContext<MainViewModel>((page, viewModel) => page
+		this.DataContext<MainViewModel>((page, viewModel) => page
 				.Background(Theme.Brushes.Background.Default)
 				.NavigationCacheMode(NavigationCacheMode.Required)
-				.Content(new Grid()
-					.RowDefinitions("*, 4*")
-					.Children(
-						new Grid()
-							.ColumnDefinitions("3*, 3*, 4*, 2*")
-							.Children(
-								BasicBorder(
-									new ListView()
-										.ItemsSource(() => viewModel.AvailableHandshakes)
-										.ItemTemplate<string>(handshakeId => 
-											new TextBlock().Text(() => handshakeId)
-										)
-								).Grid(column: 0),
-								BasicBorder(
-									new StackPanel().Children(
-										new TextBlock().Text("Local peer").FontSize(16).FontWeight(FontWeights.SemiBold),
-										new TextBlock().Text(() => viewModel.LocalPeer.Id),
-										new TextBox().Text(text => text
-											.Binding(() => viewModel.LocalPeer.DisplayName)
-											.TwoWay()
-											.UpdateSourceTrigger(UpdateSourceTrigger.PropertyChanged)
-										)
-									)
-								).Grid(column: 1),
-								BasicBorder(
-									new StackPanel()
+				.Content(
+					new Grid()
+						.ColumnDefinitions("3*, *")
+						.Children(
+							new Grid()
+								.RowDefinitions("*, 3*")
+								.Children(
+									new Grid()
+										.ColumnDefinitions("*, *")
 										.Children(
-											new TextBlock().Text("Handshake").FontSize(16).FontWeight(FontWeights.SemiBold),
-											new TextBlock().Text(
-												() => viewModel.LocalPeer, 
-												peer => $"Handshake ID: {peer.HandshakeId ?? "(none)"}"
-											),
-											new TextBlock().Text(
-												() => viewModel.RemotePeer, 
-												peer => $"Remote peer: {peer.Id ?? "(none)"}"
-											)
-										)
-								).Grid(column: 2),
-								BasicBorder(
-									new TextBlock().Text("Block four!")
-								).Grid(column: 3)
-						).Grid(row: 0),
-						new Grid()
-							.ColumnDefinitions("3*, *")
-							.Children(
-								BasicBorder(new TextBlock().Text("Hello, Uno!").Grid(column: 0)),
-								BasicBorder(
-									new ListView()
-										.Background(Theme.Brushes.Background.Default)
-										.ItemsSource(() => viewModel.Messages)
-										.ItemTemplate<ClientLogMessage>(LogMessageTemplate)
-								).Grid(column: 1)
-						).Grid(row: 1)
-					)
+											BasicBorder(
+												new StackPanel().Children(
+													new TextBlock().Text("Available handshakes").FontSize(16).FontWeight(FontWeights.SemiBold),
+													new ListView()
+														.ItemsSource(() => viewModel.AvailableHandshakes)
+														.ItemTemplate<string>(handshakeId => 
+															new TextBlock().Text(() => handshakeId)
+														)
+												)
+											).Grid(column: 0),
+											BasicBorder(
+												new StackPanel().Children(
+													new StackPanel().Children(
+														new TextBlock().Text("Local peer").FontSize(16).FontWeight(FontWeights.SemiBold),
+														new TextBlock().Text(() => viewModel.LocalPeer.Id)
+													),
+													new StackPanel().Children(
+														new TextBlock().Text("Handshake").FontSize(16).FontWeight(FontWeights.SemiBold),
+														new TextBlock().Text(
+															() => viewModel.LocalPeer, 
+															peer => $"Handshake ID: {peer.HandshakeId ?? "(none)"}"
+														),
+														new TextBlock().Text(
+															() => viewModel.RemotePeer, 
+															peer => $"Remote peer: {peer.Id ?? "(none)"}"
+														)
+													)
+												)
+											).Grid(column: 1)
+										).Grid(row: 0),
+									BasicBorder(new TextBlock().Text("Hello, Uno!")).Grid(row: 1)
+								).Grid(column: 0),
+							BasicBorder(
+								new ListView()
+									.Background(Theme.Brushes.Background.Default)
+									.ItemsSource(() => viewModel.Messages)
+									.ItemTemplate<ClientLogMessage>(LogMessageTemplate)
+							).Grid(column: 1)
+						)
 				)
 			);
     }
