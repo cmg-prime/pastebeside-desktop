@@ -22,7 +22,7 @@ public sealed partial class MainPage : Page
 										.Children(
 											BasicBorder(
 												new StackPanel().Children(
-													new TextBlock().Text("Available handshakes").FontSize(16).FontWeight(FontWeights.SemiBold),
+													SectionTitle("Available handshakes"),
 													new ListView()
 														.ItemsSource(() => viewModel.AvailableHandshakes)
 														.ItemTemplate<string>(handshakeId => 
@@ -36,11 +36,11 @@ public sealed partial class MainPage : Page
 													.Justify(AutoLayoutJustify.SpaceBetween)
 													.Children(
 														new StackPanel().Children(
-															new TextBlock().Text("Local peer").FontSize(16).FontWeight(FontWeights.SemiBold),
+															SectionTitle("Local peer"),
 															new TextBlock().Text(() => viewModel.LocalPeer.Id)
 														),
 														new StackPanel().Children(
-															new TextBlock().Text("Handshake").FontSize(16).FontWeight(FontWeights.SemiBold),
+															SectionTitle("Handshake"),
 															new TextBlock().Text(
 																() => viewModel.LocalPeer, 
 																peer => $"Handshake ID: {peer.HandshakeId ?? "(none)"}"
@@ -65,6 +65,16 @@ public sealed partial class MainPage : Page
 				)
 			);
     }
+
+	private static Border SectionTitle(string text) => new Border()
+		.BorderBrush(new SolidColorBrush(Colors.LightGray))
+		.Margin(0, 0, 0, 4)
+		.BorderThickness(0, 0, 0, 1)
+		.Child(new TextBlock()
+			.Text(text)
+			.FontSize(16)
+			.FontWeight(FontWeights.SemiBold)
+		);
 
 	private static TextBlock LogMessageTemplate(ClientLogMessage message) => new TextBlock()
 		.Text(() => message, message => $"{message.LogTime:HH:mm:ss} {message.Text}")
