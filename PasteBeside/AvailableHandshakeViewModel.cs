@@ -12,6 +12,8 @@ public record AvailableHandshakeViewModel
 
 	public string AvailableHandshakeId { get; }
 
+	public bool IsCurrentActiveHandshake { get { return AvailableHandshakeId == _localPeerHandshakeId; } }
+
     public Brush IconBrush =>
         AvailableHandshakeId == _localPeerHandshakeId
             ? new SolidColorBrush(Colors.Green)

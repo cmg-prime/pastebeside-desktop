@@ -1,5 +1,6 @@
 using Microsoft.UI.Text;
 using PasteBeside.ClientFriendlyLog;
+using Uno.Client;
 
 namespace PasteBeside;
 
@@ -23,9 +24,7 @@ public sealed partial class MainPage : Page
 											BasicBorder(
 												new StackPanel().Children(
 													SectionTitle("Available handshakes"),
-													new ListView()
-														.ItemsSource(() => viewModel.AvailableHandshakes)
-														.ItemTemplate<AvailableHandshakeViewModel>(AvailableHandshakes)
+													CursorListView(viewModel)
 												)
 											).Grid(column: 0),
 											BasicBorder(
@@ -84,6 +83,30 @@ public sealed partial class MainPage : Page
 				)
 			);
     }
+
+	private static CursorListView CursorListView(MainViewModel viewModel)
+	{
+		var listView = new CursorListView()
+			.ItemsSource(() => viewModel.AvailableHandshakes)
+			.IsItemClickEnabled(true)
+			.ItemTemplate<AvailableHandshakeViewModel>(AvailableHandshakes);
+
+		// NB: this is a workaround for three other issues.
+		// 1. Calling .Command fluently on the CursorListView doesn't work: the compiler matches
+		// the extension method to the wrong type.
+		// 2. Calling CommandExtensions.SetCommand explicitly (or rolling our own eventhandler for 
+		// listView.ItemClick) requires a direct reference to viewModel.ConnectToHandshake. But viewModel
+		// is just a proxy for type-safety - evaluating it eagerly (before the DataContext actually initializes)
+		// always resolves to null.
+		// 3. Defining inline event handler logic works for trivial cases, but fails when we need access
+		// to viewModel data. We need a reference to the viewModel that resolves safely: a binding.
+		listView.SetBinding(
+			CommandExtensions.CommandProperty,
+			new Binding { Path = new PropertyPath(nameof(MainViewModel.ConnectToHandshake)) }
+		);
+
+		return listView;
+	}
 
 	private static AutoLayout AvailableHandshakes(AvailableHandshakeViewModel viewModel) => new AutoLayout()
 		.Orientation(Orientation.Horizontal)
