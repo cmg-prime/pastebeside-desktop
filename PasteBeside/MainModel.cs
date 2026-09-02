@@ -11,7 +11,13 @@ internal partial record MainModel
 	public MainModel(ClientLogger clientLogger, HubServiceFactory hubServiceFactory, Participant localPeer)
 	{
 		_hubService = hubServiceFactory.Create(
-			async handshakeIds => await AvailableHandshakes!.UpdateAsync(_ => handshakeIds),
+			async handshakeIds =>
+			{
+				var localPeerHandshakeId = (await LocalPeer!)!.HandshakeId!;
+				var viewModels = handshakeIds.Select(handshakeId 
+					=> new AvailableHandshakeViewModel(handshakeId, localPeerHandshakeId));
+				await AvailableHandshakes!.UpdateAsync(_ => [.. viewModels]);
+			},
 			async (handshakeId, localParticipant) => 
 			{
 				await _hubService!.Initialization;
@@ -53,14 +59,15 @@ internal partial record MainModel
 		Messages = clientLogger.Messages;
 		LocalPeer = State<Participant>.Value(this, () => localPeer);
 		RemotePeer = State<Participant>.Empty(this);
-		AvailableHandshakes = State<IList<string>>.Value(this, () => []);
+		AvailableHandshakes = State<IList<AvailableHandshakeViewModel>>.Value(this, () => []);
 
 		async Task OnAbandonedDelegate(string handshakeId, string logMessage)
 		{
 			await _hubService!.Initialization;
 			await AvailableHandshakes!.UpdateAsync(existing =>
 			{
-				existing!.Remove(handshakeId);
+				var targetModel = existing!.First(model => model.AvailableHandshakeId == handshakeId);
+				existing!.Remove(targetModel);
 				return existing;
 			});
 			await RemotePeer!.UpdateAsync(peer => null);
@@ -71,6 +78,6 @@ internal partial record MainModel
 	public IState<IReadOnlyList<ClientLogMessage>> Messages { get; }
 	public IState<Participant> LocalPeer { get; }
 	public IState<Participant> RemotePeer { get; }
-	public IState<IList<string>> AvailableHandshakes { get; }
+	public IState<IList<AvailableHandshakeViewModel>> AvailableHandshakes { get; }
 
 }
