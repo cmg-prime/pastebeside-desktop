@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace PasteBeside.HandshakeHub;
+namespace PasteBeside;
 
 public static class ParticipantIdentifier
 {
@@ -21,7 +21,6 @@ public static class ParticipantIdentifier
             var characterIndex = random.Next(0, source.Length);
             stringBuilder.Append(source[characterIndex]);
         }
-        stringBuilder.Append(DateTime.Now.ToString("-HHmmss"));
         var identifier = stringBuilder.ToString();
         return string.Concat(identifier[0].ToString().ToUpper(), identifier.AsSpan(1));
     }

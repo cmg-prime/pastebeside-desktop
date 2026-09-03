@@ -1,9 +1,5 @@
-using System;
-using Microsoft.Extensions.Logging;
 using PasteBeside.ClientFriendlyLog;
 using PasteBeside.HandshakeHub;
-using Uno.Extensions.Navigation;
-using Uno.Resizetizer;
 using Microsoft.Extensions.Configuration;
 using BoundaryModels;
 
