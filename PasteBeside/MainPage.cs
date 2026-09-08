@@ -73,7 +73,7 @@ public sealed partial class MainPage : Page
 									BasicBorder(new TextBlock().Text("Hello, Uno!")).Grid(row: 1)
 								).Grid(column: 0),
 							BasicBorder(
-								new ListView()
+								new SlimListView()
 									.Background(Theme.Brushes.Background.Default)
 									.ItemsSource(() => viewModel.Messages)
 									.ItemTemplate<ClientLogMessage>(LogMessageTemplate)
@@ -137,6 +137,8 @@ public sealed partial class MainPage : Page
 	private static TextBlock LogMessageTemplate(ClientLogMessage message) => new TextBlock()
 		.Text(() => message, message => $"{message.LogTime:HH:mm:ss} {message.Text}")
 		.Foreground(() => message.Type, type => GetColor(type))
+		// NB: removes text trim (ellipsis) competing with text wrap property.
+		.TextTrimming(TextTrimming.None)
 		.TextWrapping(TextWrapping.Wrap);
 
 	private static Border BasicBorder(UIElement child) => new Border()
