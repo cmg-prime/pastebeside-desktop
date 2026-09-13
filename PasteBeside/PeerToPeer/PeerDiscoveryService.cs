@@ -11,6 +11,7 @@ public class PeerDiscoveryService
 	private const int _discoveryPort = 41234;
 	// NB: make app ID part of the payload so listeners can filter out unintentionally received datagrams.
 	private const string _appId = "pastebeside-p2p";
+	private readonly Guid _instanceId = Guid.NewGuid();
 
 	private readonly ClientLogger _logger;
 	private readonly UdpClient _discoveryListener;
@@ -55,10 +56,17 @@ public class PeerDiscoveryService
 				datagram = await _discoveryListener.ReceiveAsync(cancelToken);
 				var payloadText = Encoding.UTF8.GetString(datagram.Buffer);
 				var discoveryInfo = payloadText.Split(':');
-				if(discoveryInfo.Length != 2 || !discoveryInfo[0].Equals(_appId))
+				if(discoveryInfo.Length != 3 || !discoveryInfo[0].Equals(_appId))
 					continue;
 
-				if(!int.TryParse(discoveryInfo[1], out var peerPort) || peerPort == _connectionListenerPort)
+				// NB: more robust to guard on GUID than address/port - determining your canonical address 
+				// involves a surprising number of edge cases. (What if you have ethernet *and* WiFi active? Or
+				// a VPN, or some other more or less niche network interface? What if your DHCP lease expires
+				// while your machine sleeps?)
+				if(!Guid.TryParse(discoveryInfo[1], out var peerInstanceId) || peerInstanceId == _instanceId)
+					continue; 
+
+				if(!int.TryParse(discoveryInfo[2], out var peerPort))
 					continue; 
 
 				var peerEndpoint = new IPEndPoint(datagram.RemoteEndPoint.Address, peerPort);
@@ -87,7 +95,7 @@ public class PeerDiscoveryService
 		var broadcastEndpoint = new IPEndPoint(IPAddress.Broadcast, _discoveryPort);
 
 		try {
-			var discoveryPayload = Payloadify(_appId, (int)_connectionListenerPort!);
+			var discoveryPayload = Encoding.UTF8.GetBytes($"{_appId}:{_instanceId}:{_connectionListenerPort}");
 			await _broadcaster.SendAsync(discoveryPayload, discoveryPayload.Length, broadcastEndpoint);
 			await _logger.Info("Discovery info broadcast.");
 		}
@@ -95,9 +103,6 @@ public class PeerDiscoveryService
 			await _logger.Error($"Problem broadcasting discovery info: {e.Message}");
 		}
 	}
-
-	private static byte[] Payloadify(string appId, int myListenerPort) 
-		=> Encoding.UTF8.GetBytes($"{appId}:{myListenerPort}");
 
 	public void Dispose()
 	{
