@@ -19,6 +19,8 @@ public class PeerDiscoveryService
 	private readonly UdpClient _broadcaster;
 	private readonly CancellationTokenSource _cancelTokenSource;
 
+	private int? _connectionListenerPort;
+
 	public PeerDiscoveryService(ClientLogger logger, PeerListener listener, PeerConnectionClient peerClient)
 	{
 		_logger = logger;
@@ -36,9 +38,9 @@ public class PeerDiscoveryService
 
 	public async Task BeginDiscovery()
 	{
+		_connectionListenerPort = (await _connectionListener.InitializeListener(_cancelTokenSource.Token)).Port;
 		await Broadcast(_cancelTokenSource.Token);
 #pragma warning disable CS4014
-		_connectionListener.BeginListening(_cancelTokenSource.Token);
 		ListenForPeer(_cancelTokenSource.Token);
 #pragma warning restore CS4014
 	}
@@ -48,12 +50,22 @@ public class PeerDiscoveryService
 		await _logger.Info("Starting peer discovery loop...");
 		while (!cancelToken.IsCancellationRequested)
 		{
-			UdpReceiveResult result;
+			UdpReceiveResult datagram;
 			try {
-				result = await _discoveryListener.ReceiveAsync(cancelToken);
-				if(DiscoveredOwnBroadcast(result.Buffer))
+				datagram = await _discoveryListener.ReceiveAsync(cancelToken);
+				var payloadText = Encoding.UTF8.GetString(datagram.Buffer);
+				var discoveryInfo = payloadText.Split(':');
+				if(discoveryInfo.Length != 2 || !discoveryInfo[0].Equals(_appId))
 					continue;
-					
+
+				if(!int.TryParse(discoveryInfo[1], out var peerPort) || peerPort == _connectionListenerPort)
+					continue; 
+
+				var peerEndpoint = new IPEndPoint(datagram.RemoteEndPoint.Address, peerPort);
+				await _peerClient.MakeOutgoingConnection(peerEndpoint, cancelToken);
+
+				// NB: make sure new peers know about this client.
+				await Broadcast(cancelToken);
 				await _logger.Success("Peer discovered!");
 			}
 			catch (OperationCanceledException) { 
@@ -61,19 +73,8 @@ public class PeerDiscoveryService
 				break; 
 			}
 			catch (Exception e) {
-				await _logger.Error($"Problem listening for peer discovery: {e.Message}");
+				await _logger.Error($"Problem during peer discovery: {e.Message}");
 				continue;
-			}
-
-			var text = Encoding.UTF8.GetString(result.Buffer);
-			var parts = text.Split(':');
-			if (parts.Length == 2 && parts[0] == _appId && int.TryParse(parts[1], out var peerPort))
-			{
-				var peerEndpoint = new IPEndPoint(result.RemoteEndPoint.Address, peerPort);
-				await _peerClient.MakeOutgoingConnection(peerEndpoint, cancelToken);
-
-				// NB: make sure new peers know about this client.
-				await Broadcast(cancelToken);
 			}
 		}
 	}
@@ -86,7 +87,8 @@ public class PeerDiscoveryService
 		var broadcastEndpoint = new IPEndPoint(IPAddress.Broadcast, _discoveryPort);
 
 		try {
-			await _broadcaster.SendAsync(DiscoveryPayload, DiscoveryPayload.Length, broadcastEndpoint);
+			var discoveryPayload = Payloadify(_appId, (int)_connectionListenerPort!);
+			await _broadcaster.SendAsync(discoveryPayload, discoveryPayload.Length, broadcastEndpoint);
 			await _logger.Info("Discovery info broadcast.");
 		}
 		catch (Exception e) { 
@@ -94,19 +96,8 @@ public class PeerDiscoveryService
 		}
 	}
 
-	private bool DiscoveredOwnBroadcast(byte[] incomingPayload)
-	{
-		if (DiscoveryPayload.Length != incomingPayload.Length)
-			return false;
-
-		for(var i = 0; i < DiscoveryPayload.Length; i++)
-			if(DiscoveryPayload[i] != incomingPayload[i])
-				return false;
-		
-		return true;
-	}
-
-	private byte[] DiscoveryPayload => Encoding.UTF8.GetBytes($"{_appId}:{_connectionListener.Port}");
+	private static byte[] Payloadify(string appId, int myListenerPort) 
+		=> Encoding.UTF8.GetBytes($"{appId}:{myListenerPort}");
 
 	public void Dispose()
 	{

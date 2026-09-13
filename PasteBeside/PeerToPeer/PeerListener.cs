@@ -18,22 +18,28 @@ public class PeerListener
 		_listener = new TcpListener(IPAddress.Any, 0);
 	}
 
-	// NB: can't meaningfully call this before _listener.Start: instantiating the listener with port 0 
-	// means that the OS  dynamically assigns a port on .Start. For this special case, the post-.Start port
-	// differs from the constructor argument.
-	public int Port => ((IPEndPoint)_listener.LocalEndpoint).Port;
-
-	public async Task BeginListening(CancellationToken cancelToken)
+	// NB: guarantee _listener.Start executes before callers can access the listener's port. Since we
+	// instantiate the listener with port 0, the OS dynamically assigns the "real" port on .Start.
+	public async Task<IPEndPoint> InitializeListener(CancellationToken cancelToken)
 	{
 		_cancelTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancelToken);
 		await _logger.Info("Listening for peer connection...");
 		_listener.Start();
+#pragma warning disable CS4014
+		ExecuteListenLoop();
+#pragma warning restore CS4014
+
+		return (IPEndPoint)_listener.LocalEndpoint;
+	}
+
+	public async Task ExecuteListenLoop()
+	{
 		while (true)
 		{
 			TcpClient incomingTcpClient;
 			try
 			{
-				incomingTcpClient = await _listener.AcceptTcpClientAsync(_cancelTokenSource.Token);
+				incomingTcpClient = await _listener.AcceptTcpClientAsync(_cancelTokenSource!.Token);
 				await _logger.Info("Incoming peer connection accepted!");
 				// NB: if we were already connected, don't boot the current peer in favor of the new one.
 				if (_peerClient.IsConnected) {
