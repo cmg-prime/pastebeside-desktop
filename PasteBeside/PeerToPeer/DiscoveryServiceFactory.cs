@@ -57,6 +57,9 @@ public class DiscoveryServiceFactory(ClientLogger _logger)
 				UdpReceiveResult result;
 				try {
 					result = await _listener.ReceiveAsync(cancelToken);
+					if(DiscoveredOwnBroadcast(result.Buffer))
+						continue;
+						
 					await _logger.Success("Peer discovered!");
 				}
 				catch (OperationCanceledException) { 
@@ -94,6 +97,18 @@ public class DiscoveryServiceFactory(ClientLogger _logger)
 			catch (Exception e) { 
 				await _logger.Error($"Problem broadcasting discovery info: {e.Message}");
 			}
+		}
+
+		private bool DiscoveredOwnBroadcast(byte[] incomingPayload)
+		{
+			if (_discoveryPayload.Length != incomingPayload.Length)
+				return false;
+
+			for(var i = 0; i < _discoveryPayload.Length; i++)
+				if(_discoveryPayload[i] != incomingPayload[i])
+					return false;
+			
+			return true;
 		}
 
 		public void Dispose()
