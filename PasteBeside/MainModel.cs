@@ -1,6 +1,7 @@
 ﻿using BoundaryModels;
 using PasteBeside.ClientFriendlyLog;
 using PasteBeside.HandshakeHub;
+using PasteBeside.PeerToPeer;
 
 namespace PasteBeside;
 
@@ -9,7 +10,7 @@ internal partial record MainModel
 	private readonly ClientLogger _clientLogger;
 	private readonly HandshakeHubService _hubService;
 
-	public MainModel(ClientLogger clientLogger, HubServiceFactory hubServiceFactory, Participant localPeer)
+	public MainModel(ClientLogger clientLogger, HubServiceFactory hubServiceFactory, PeerToPeerService p2p, Participant localPeer)
 	{
 		_clientLogger = clientLogger;
 		_hubService = hubServiceFactory.Create(
@@ -62,6 +63,8 @@ internal partial record MainModel
 		LocalPeer = State<Participant>.Value(this, () => localPeer);
 		RemotePeer = State<Participant>.Empty(this);
 		AvailableHandshakes = State<IList<AvailableHandshakeViewModel>>.Value(this, () => []);
+
+		p2p.BroadcastPeer();
 
 		async Task OnAbandonedDelegate(string handshakeId, string logMessage)
 		{
