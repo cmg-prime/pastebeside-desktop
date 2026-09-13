@@ -52,7 +52,7 @@ public partial class App : Application
 						// NB: peer-to-peer registrations
 						.AddSingleton<MessageServiceFactory>()
 						.AddSingleton<PeerConnectionClient>()
-						.AddSingleton<PeerListener>()
+						.AddSingleton<ConnectionRequestListener>()
 						.AddSingleton<PeerDiscoveryService>();
 				})
 				.UseNavigation(ReactiveViewModelMappings.ViewModelMappings, RegisterRoutes)

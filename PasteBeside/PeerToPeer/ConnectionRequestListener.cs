@@ -4,14 +4,14 @@ using PasteBeside.ClientFriendlyLog;
 
 namespace PasteBeside.PeerToPeer;
 
-public class PeerListener
+public class ConnectionRequestListener
 {
 	private readonly ClientLogger _logger;
 	private readonly PeerConnectionClient _peerClient;
 	private readonly TcpListener _listener;
 	private CancellationTokenSource? _cancelTokenSource;
 
-	public PeerListener(ClientLogger logger, PeerConnectionClient peerClient)
+	public ConnectionRequestListener(ClientLogger logger, PeerConnectionClient peerClient)
 	{
 		_logger = logger;
 		_peerClient = peerClient;

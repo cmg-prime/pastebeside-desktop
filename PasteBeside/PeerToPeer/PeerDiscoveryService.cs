@@ -15,14 +15,14 @@ public class PeerDiscoveryService
 
 	private readonly ClientLogger _logger;
 	private readonly UdpClient _discoveryListener;
-	private readonly PeerListener _connectionListener;
+	private readonly ConnectionRequestListener _connectionListener;
 	private readonly PeerConnectionClient _peerClient;
 	private readonly UdpClient _broadcaster;
 	private readonly CancellationTokenSource _cancelTokenSource;
 
 	private int? _connectionListenerPort;
 
-	public PeerDiscoveryService(ClientLogger logger, PeerListener listener, PeerConnectionClient peerClient)
+	public PeerDiscoveryService(ClientLogger logger, ConnectionRequestListener listener, PeerConnectionClient peerClient)
 	{
 		_logger = logger;
 		_cancelTokenSource = new CancellationTokenSource();
