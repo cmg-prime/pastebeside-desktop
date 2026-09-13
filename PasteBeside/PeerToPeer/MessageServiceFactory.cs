@@ -6,8 +6,8 @@ namespace PasteBeside.PeerToPeer;
 
 public class MessageServiceFactory(ClientLogger _logger)
 {
-	public MessageService Create(TcpClient client, Action<string> OnMessageReceived, CancellationToken cancelToken) 
-		=> new TcpMessageService(_logger, client, OnMessageReceived, cancelToken);
+	public MessageService Create(TcpClient client, CancellationToken cancelToken) 
+		=> new TcpMessageService(_logger, client, cancelToken);
 
 	private class TcpMessageService : MessageService
 	{
@@ -15,14 +15,12 @@ public class MessageServiceFactory(ClientLogger _logger)
 		private readonly SemaphoreSlim _sendLock;
 		private readonly TcpClient _client;
 		private readonly CancellationTokenSource _cancelTokenSource;
-		private readonly Action<string> _OnMessageReceived;
 
-		public TcpMessageService(ClientLogger logger, TcpClient client, Action<string> OnMessageReceived, CancellationToken cancelToken)
+		public TcpMessageService(ClientLogger logger, TcpClient client, CancellationToken cancelToken)
 		{
 			_logger = logger;
 			_client = client;
 			_cancelTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancelToken);
-			_OnMessageReceived = OnMessageReceived;
 			_sendLock = new(1, 1);
 		}
 
@@ -50,7 +48,8 @@ public class MessageServiceFactory(ClientLogger _logger)
 					if (!payloadReadAttempt.IsSuccess) 
 						break;
 
-					_OnMessageReceived(Encoding.UTF8.GetString(payloadReadAttempt.Bytes));
+					var message = Encoding.UTF8.GetString(payloadReadAttempt.Bytes);
+					await _logger.Success($"Message received: {message}");
 				}
 			}
 			catch (OperationCanceledException) { 

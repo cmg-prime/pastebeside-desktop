@@ -10,7 +10,7 @@ internal partial record MainModel
 	private readonly ClientLogger _clientLogger;
 	private readonly HandshakeHubService _hubService;
 
-	public MainModel(ClientLogger clientLogger, HubServiceFactory hubServiceFactory, PeerToPeerService p2p, Participant localPeer)
+	public MainModel(ClientLogger clientLogger, HubServiceFactory hubServiceFactory, PeerDiscoveryService peerService, Participant localPeer)
 	{
 		_clientLogger = clientLogger;
 		_hubService = hubServiceFactory.Create(
@@ -64,7 +64,9 @@ internal partial record MainModel
 		RemotePeer = State<Participant>.Empty(this);
 		AvailableHandshakes = State<IList<AvailableHandshakeViewModel>>.Value(this, () => []);
 
-		p2p.BroadcastPeer();
+#pragma warning disable CS4014
+		peerService.BeginDiscovery();
+#pragma warning restore CS4014
 
 		async Task OnAbandonedDelegate(string handshakeId, string logMessage)
 		{

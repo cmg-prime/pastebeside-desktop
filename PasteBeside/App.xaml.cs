@@ -51,10 +51,9 @@ public partial class App : Application
                         .AddSingleton<HubServiceFactory>()
 						// NB: peer-to-peer registrations
 						.AddSingleton<MessageServiceFactory>()
-						.AddSingleton<PeerConnectionClientFactory>()
-						.AddSingleton<PeerListenerFactory>()
-						.AddSingleton<DiscoveryServiceFactory>()
-						.AddSingleton<PeerToPeerService>();
+						.AddSingleton<PeerConnectionClient>()
+						.AddSingleton<PeerListener>()
+						.AddSingleton<PeerDiscoveryService>();
 				})
 				.UseNavigation(ReactiveViewModelMappings.ViewModelMappings, RegisterRoutes)
 			);
