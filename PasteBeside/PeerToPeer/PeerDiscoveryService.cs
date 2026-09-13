@@ -37,13 +37,13 @@ public class PeerDiscoveryService
 	public async Task BeginDiscovery()
 	{
 		await Broadcast(_cancelTokenSource.Token);
-		await _connectionListener.BeginListening(_cancelTokenSource.Token);
 #pragma warning disable CS4014
-		ListenUntilCanceled(_cancelTokenSource.Token);
+		_connectionListener.BeginListening(_cancelTokenSource.Token);
+		ListenForPeer(_cancelTokenSource.Token);
 #pragma warning restore CS4014
 	}
 
-	private async Task ListenUntilCanceled(CancellationToken cancelToken)
+	private async Task ListenForPeer(CancellationToken cancelToken)
 	{
 		await _logger.Info("Starting peer discovery loop...");
 		while (!cancelToken.IsCancellationRequested)
