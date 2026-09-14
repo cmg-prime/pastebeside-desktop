@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Sockets;
 using PasteBeside.ClientFriendlyLog;
+using PasteBeside.Eventing;
 
 namespace PasteBeside.PeerToPeer;
 

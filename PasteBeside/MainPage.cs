@@ -22,7 +22,7 @@ public sealed partial class MainPage : Page
 										.Children(
 											BasicBorder(
 												new StackPanel().Children(
-													SectionTitle("Available handshakes"),
+													SectionTitle("Available peers"),
 													CursorListView(viewModel)
 												)
 											).Grid(column: 0),
@@ -33,7 +33,10 @@ public sealed partial class MainPage : Page
 													.Children(
 														new StackPanel().Children(
 															SectionTitle("Local peer"),
-															new TextBlock().Text(() => viewModel.LocalPeer.Id)
+															new TextBlock().Text(
+																() => viewModel.LocalPeer, 
+																peer => peer?.Id ?? "Configuring..."
+															)
 														),
 														new StackPanel().Children(
 															new Border()
@@ -46,7 +49,7 @@ public sealed partial class MainPage : Page
 																	.Padding(0, 0, 8, 0)
 																	.Children(
 																		new TextBlock()
-																			.Text("Handshake")
+																			.Text("Peer connection")
 																			.FontSize(16)
 																			.FontWeight(FontWeights.SemiBold),
 																		new Viewbox()
@@ -58,10 +61,6 @@ public sealed partial class MainPage : Page
 																			)
 																	)
 																),
-															new TextBlock().Text(
-																() => viewModel.LocalPeer, 
-																peer => $"Handshake ID: {peer.HandshakeId ?? "(none)"}"
-															),
 															new TextBlock().Text(
 																() => viewModel.RemotePeer, 
 																peer => $"Remote peer: {peer.Id ?? "(none)"}"
@@ -86,9 +85,9 @@ public sealed partial class MainPage : Page
 	private static CursorListView CursorListView(MainViewModel viewModel)
 	{
 		var listView = new CursorListView()
-			.ItemsSource(() => viewModel.AvailableHandshakes)
+			.ItemsSource(() => viewModel.AvailablePeers)
 			.IsItemClickEnabled(true)
-			.ItemTemplate<AvailableHandshakeViewModel>(AvailableHandshakes);
+			.ItemTemplate<AvailablePeerViewModel>(AvailableHandshakes);
 
 		// NB: this is a workaround for three other issues.
 		// 1. Calling .Command fluently on the CursorListView doesn't work: the compiler matches
@@ -101,18 +100,18 @@ public sealed partial class MainPage : Page
 		// to viewModel data. We need a reference to the viewModel that resolves safely: a binding.
 		listView.SetBinding(
 			CommandExtensions.CommandProperty,
-			new Binding { Path = new PropertyPath(nameof(MainViewModel.ConnectToHandshake)) }
+			new Binding { Path = new PropertyPath(nameof(MainViewModel.ConnectToPeer)) }
 		);
 
 		return listView;
 	}
 
-	private static AutoLayout AvailableHandshakes(AvailableHandshakeViewModel viewModel) => new AutoLayout()
+	private static AutoLayout AvailableHandshakes(AvailablePeerViewModel viewModel) => new AutoLayout()
 		.Orientation(Orientation.Horizontal)
 		.Justify(AutoLayoutJustify.SpaceBetween)
 		.Padding(0, 0, 8, 0)
 		.Children(
-			new TextBlock().Text(() => viewModel.AvailableHandshakeId),
+			new TextBlock().Text(() => viewModel.AvailablePeer.Id),
 			new Viewbox()
 				.Width(15)
 				.Height(15)

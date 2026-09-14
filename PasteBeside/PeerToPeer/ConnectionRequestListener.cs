@@ -23,7 +23,7 @@ public class ConnectionRequestListener
 	public async Task<IPEndPoint> InitializeListener(CancellationToken cancelToken)
 	{
 		_cancelTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancelToken);
-		await _logger.Info("Listening for peer connection...");
+		await _logger.Info("Listening for incoming connection requests...");
 		_listener.Start();
 #pragma warning disable CS4014
 		ExecuteListenLoop();
