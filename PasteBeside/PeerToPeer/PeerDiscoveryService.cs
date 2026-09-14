@@ -45,10 +45,10 @@ public class PeerDiscoveryService
 	public async Task BeginDiscovery()
 	{
 		_connectionListenerEndpoint = await _connectionListener.InitializeListener(_cancelTokenSource.Token);
-		await Broadcast(_cancelTokenSource.Token);
 #pragma warning disable CS4014
 		ListenForPeer(_cancelTokenSource.Token);
 #pragma warning restore CS4014
+		await Broadcast(_cancelTokenSource.Token);
 	}
 
 	private async Task ListenForPeer(CancellationToken cancelToken)
