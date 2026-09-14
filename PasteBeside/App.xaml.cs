@@ -1,7 +1,5 @@
 using PasteBeside.ClientFriendlyLog;
-using PasteBeside.HandshakeHub;
 using Microsoft.Extensions.Configuration;
-using BoundaryModels;
 using PasteBeside.PeerToPeer;
 using PasteBeside.Eventing;
 
@@ -47,7 +45,6 @@ public partial class App : Application
 					services
                         .Configure<HubOptions>(context.Configuration.GetSection(nameof(HubOptions)))
                         .AddSingleton<ClientLogger>()
-                        .AddSingleton<HubServiceFactory>()
 						// NB: peer-to-peer registrations
 						.AddSingleton<MessageServiceFactory>()
 						.AddSingleton<PeerConnectionClient>()

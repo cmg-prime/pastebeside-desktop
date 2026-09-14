@@ -38,8 +38,5 @@
     <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" />
     <PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets" />
   </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\BoundaryModels\BoundaryModels.csproj" />
-  </ItemGroup>
 
 </Project>
