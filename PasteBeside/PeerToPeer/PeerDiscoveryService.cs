@@ -48,6 +48,13 @@ public class PeerDiscoveryService
 #pragma warning disable CS4014
 		ListenForPeer(_cancelTokenSource.Token);
 #pragma warning restore CS4014
+
+		// NB: initialization logic to register local peer.
+		var peer = new Peer(_localIdentifier, _connectionListenerEndpoint);
+		_repository.AddPeer(peer);
+		_eventBus.OnLocalPeerConfigured(new Peer(_localIdentifier, _connectionListenerEndpoint));
+		_eventBus.OnPeerDiscovered(peer);
+
 		await Broadcast(_cancelTokenSource.Token);
 	}
 
@@ -68,11 +75,6 @@ public class PeerDiscoveryService
 					continue; 
 
 				var peerIdentifier = discoveryInfo[1];
-				var peerEndpoint = new IPEndPoint(datagram.RemoteEndPoint.Address, peerPort);
-				var peer = new Peer(peerIdentifier, peerEndpoint);
-				_repository.AddPeer(peer);
-				_eventBus.OnPeerDiscovered(peer);
-
 				// NB: more robust to guard on GUID than address/port - determining your canonical address 
 				// involves a surprising number of edge cases. (What if you have ethernet *and* WiFi active? Or
 				// a VPN, or some other more or less niche network interface? What if your DHCP lease expires
@@ -80,14 +82,12 @@ public class PeerDiscoveryService
 				if(peerIdentifier.Equals(_localIdentifier))
 					continue;
 
+				var peerEndpoint = new IPEndPoint(datagram.RemoteEndPoint.Address, peerPort);
+				var peer = new Peer(peerIdentifier, peerEndpoint);
+				_repository.AddPeer(peer);
+				_eventBus.OnPeerDiscovered(peer);
 				if (!_peerClient.IsConnected)
 				{
-					// TODO: the PeerConnectionClient, at the TCP level, doesn't know broadcast information
-					// (i.e. peerId), so it won't be able to call EventBus.OnPeerDisconnected. That is the 
-					// relevant connection, however (and where we should call .OnPeerConnected, too) - 
-					// how do we fix?
-					// NB: We can't just pass in peerId here. The ConnectionRequestListener (which calls
-					// _peerClient.MakeIncomingConnection) is never going to have that information.
 					await _peerClient.MakeOutgoingConnection(peerEndpoint, cancelToken);				}
 
 				// NB: make sure new peers know about this client.
@@ -115,7 +115,6 @@ public class PeerDiscoveryService
 		try {
 			var discoveryPayload = Encoding.UTF8.GetBytes($"{_appId}:{_localIdentifier}:{_connectionListenerEndpoint!.Port}");
 			await _broadcaster.SendAsync(discoveryPayload, discoveryPayload.Length, broadcastEndpoint);
-			_eventBus.OnLocalPeerConfigured(new Peer(_localIdentifier, _connectionListenerEndpoint));
 			await _logger.Info("Discovery info broadcast.");
 		}
 		catch (Exception e) { 
