@@ -9,7 +9,7 @@ public class ConnectionRequestListener
 	private readonly ClientLogger _logger;
 	private readonly PeerConnectionClient _peerClient;
 	private readonly TcpListener _listener;
-	
+
 	private CancellationTokenSource? _cancelTokenSource;
 
 	public ConnectionRequestListener(ClientLogger logger, PeerConnectionClient peerClient)
@@ -41,7 +41,6 @@ public class ConnectionRequestListener
 			try
 			{
 				incomingTcpClient = await _listener.AcceptTcpClientAsync(_cancelTokenSource!.Token);
-				await _logger.Info("Incoming peer connection accepted!");
 				// NB: if we were already connected, don't boot the current peer in favor of the new one.
 				if (_peerClient.IsConnected) {
 					incomingTcpClient.Close();
@@ -49,6 +48,7 @@ public class ConnectionRequestListener
 				}
 
 				await _peerClient.MakeIncomingConnection(incomingTcpClient, _cancelTokenSource.Token);
+				await _logger.Info("Incoming peer connection accepted!");
 			}
 			catch (OperationCanceledException) { 
 				break; 

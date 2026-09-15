@@ -8,11 +8,8 @@ public class PeerRepository
 
 	public void AddPeer(Peer peer) => _peers.Add(peer);
 
-	public Peer FindByEndpoint(IPEndPoint endpoint)
-	{
-		var targetPeer = _peers.First(peer => peer.Endpoint.Equals(endpoint));
-		return targetPeer;
-	}
+	public Peer? SearchByEndpoint(IPEndPoint endpoint)
+		=> _peers.FirstOrDefault(peer => peer.Endpoint.Equals(endpoint));
 
 	public void RemoveById(string peerId)
 	{

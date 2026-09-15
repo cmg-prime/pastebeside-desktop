@@ -39,9 +39,9 @@ public class PeerConnectionClient
 				// NB: if we were trying to reconnect before, we definitely aren't now.
 				_reconnectCancelTokenSource = _reconnectCancelTokenSource!.Recycle();
 				_client = incomingClient;
-				_lastKnownPeer = _repository.FindByEndpoint((IPEndPoint)incomingClient.Client.RemoteEndPoint!);
+				_lastKnownPeer = _repository.SearchByEndpoint((IPEndPoint)incomingClient.Client.RemoteEndPoint!);
 
-				_eventBus.OnPeerConnected(_lastKnownPeer);
+				_eventBus.OnPeerConnected(_lastKnownPeer!);
 				await InitializeMessageChannel(_connectCancelTokenSource!.Token);		
 			}, 
 			_connectCancelTokenSource!.Token
@@ -59,11 +59,11 @@ public class PeerConnectionClient
 		await HandleConnectCommand(
 			async () =>
 			{
-				_lastKnownPeer = _repository.FindByEndpoint(endpoint!);
+				_lastKnownPeer = _repository.SearchByEndpoint(endpoint!);
 				_client = new TcpClient();
 				await _client.ConnectAsync(endpoint.Address, endpoint.Port, cancelToken);
 				await _logger.Info("Outgoing peer connection accepted!");
-				_eventBus.OnPeerConnected(_lastKnownPeer);
+				_eventBus.OnPeerConnected(_lastKnownPeer!);
 
 				await InitializeMessageChannel(cancelToken);
 			},

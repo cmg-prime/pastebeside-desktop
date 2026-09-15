@@ -45,15 +45,14 @@ public class PeerDiscoveryService
 	public async Task BeginDiscovery()
 	{
 		_connectionListenerEndpoint = await _connectionListener.InitializeListener(_cancelTokenSource.Token);
-#pragma warning disable CS4014
-		ListenForPeer(_cancelTokenSource.Token);
-#pragma warning restore CS4014
-
-		// NB: initialization logic to register local peer.
 		var peer = new Peer(_localIdentifier, _connectionListenerEndpoint);
 		_repository.AddPeer(peer);
 		_eventBus.OnLocalPeerConfigured(new Peer(_localIdentifier, _connectionListenerEndpoint));
 		_eventBus.OnPeerDiscovered(peer);
+
+#pragma warning disable CS4014
+		ListenForPeer(_cancelTokenSource.Token);
+#pragma warning restore CS4014
 
 		await Broadcast(_cancelTokenSource.Token);
 	}
@@ -75,14 +74,18 @@ public class PeerDiscoveryService
 					continue; 
 
 				var peerIdentifier = discoveryInfo[1];
-				// NB: more robust to guard on GUID than address/port - determining your canonical address 
-				// involves a surprising number of edge cases. (What if you have ethernet *and* WiFi active? Or
-				// a VPN, or some other more or less niche network interface? What if your DHCP lease expires
-				// while your machine sleeps?)
+				var peerEndpoint = new IPEndPoint(datagram.RemoteEndPoint.Address, peerPort);
+				// NB: this may not catch loopback broadcasts, for which the source port is typically ephemeral.
+				if(_repository.SearchByEndpoint(peerEndpoint) is not null)
+					continue;
+
+				// NB: more robust loopback guard than address/port - determining your canonical address 
+				// involves a surprising number of edge cases. (E.g. ephemeral ports, multiple network 
+				// interfaces - switching between wifi, ethernet, VPN, or some other niche network interface
+				// during the same session - or what if your DHCP lease expires while your machine sleeps?)
 				if(peerIdentifier.Equals(_localIdentifier))
 					continue;
 
-				var peerEndpoint = new IPEndPoint(datagram.RemoteEndPoint.Address, peerPort);
 				var peer = new Peer(peerIdentifier, peerEndpoint);
 				_repository.AddPeer(peer);
 				_eventBus.OnPeerDiscovered(peer);
