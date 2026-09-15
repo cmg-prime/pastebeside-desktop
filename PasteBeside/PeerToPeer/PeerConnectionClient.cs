@@ -117,6 +117,7 @@ public class PeerConnectionClient
 		_client?.Close();
 		_client = null;
 		_OnDisconnected?.Invoke();
+		_repository.RemoveById(_lastKnownPeer!.Id);
 		_eventBus.OnPeerDisconnected(_lastKnownPeer!.Id);
 #pragma warning disable CS4014
 		TryReconnect();
@@ -135,6 +136,7 @@ public class PeerConnectionClient
 			{
 				await MakeOutGoingConnection(_lastKnownPeer!.Endpoint, cancelToken);
 				if (IsConnected) {
+					_repository.AddPeer(_lastKnownPeer);
 					await _logger.Success("Reconnected to peer!");
 					return;
 				} 

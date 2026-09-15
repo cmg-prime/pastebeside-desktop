@@ -20,11 +20,12 @@ public class PeerDiscoveryService
 	private readonly PeerConnectionClient _peerClient;
 	private readonly UdpClient _broadcaster;
 	private readonly CancellationTokenSource _cancelTokenSource;
+	private readonly PeerRepository _repository;
 	private readonly EventBus _eventBus;
 
 	private IPEndPoint? _connectionListenerEndpoint;
 
-	public PeerDiscoveryService(ClientLogger logger, ConnectionRequestListener listener, PeerConnectionClient peerClient, EventBus eventBus)
+	public PeerDiscoveryService(ClientLogger logger, ConnectionRequestListener listener, PeerConnectionClient peerClient, PeerRepository repository, EventBus eventBus)
 	{
 		_logger = logger;
 		_cancelTokenSource = new CancellationTokenSource();
@@ -37,6 +38,7 @@ public class PeerDiscoveryService
 		_broadcaster = new UdpClient { EnableBroadcast = true };
 		_connectionListener = listener;
 		_peerClient = peerClient;
+		_repository = repository;
 		_eventBus = eventBus;
 	}
 
@@ -67,7 +69,9 @@ public class PeerDiscoveryService
 
 				var peerIdentifier = discoveryInfo[1];
 				var peerEndpoint = new IPEndPoint(datagram.RemoteEndPoint.Address, peerPort);
-				_eventBus.OnPeerDiscovered(new Peer(peerIdentifier, peerEndpoint));
+				var peer = new Peer(peerIdentifier, peerEndpoint);
+				_repository.AddPeer(peer);
+				_eventBus.OnPeerDiscovered(peer);
 
 				// NB: more robust to guard on GUID than address/port - determining your canonical address 
 				// involves a surprising number of edge cases. (What if you have ethernet *and* WiFi active? Or
