@@ -40,8 +40,6 @@ public class PeerDiscoveryService
 		_eventBus = eventBus;
 	}
 
-	public delegate Task OnPeerDiscovery(Peer incomingPeer);
-
 	public async Task BeginDiscovery()
 	{
 		_connectionListenerEndpoint = await _connectionListener.InitializeListener(_cancelTokenSource.Token);
@@ -86,9 +84,7 @@ public class PeerDiscoveryService
 					// how do we fix?
 					// NB: We can't just pass in peerId here. The ConnectionRequestListener (which calls
 					// _peerClient.MakeIncomingConnection) is never going to have that information.
-					await _peerClient.MakeOutgoingConnection(peerEndpoint, cancelToken);
-					_eventBus.OnPeerConnected(new Peer(peerIdentifier, peerEndpoint));
-				}
+					await _peerClient.MakeOutgoingConnection(peerEndpoint, cancelToken);				}
 
 				// NB: make sure new peers know about this client.
 				await Broadcast(cancelToken);

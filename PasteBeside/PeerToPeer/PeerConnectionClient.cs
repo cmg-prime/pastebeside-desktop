@@ -10,18 +10,22 @@ public class PeerConnectionClient
 	private readonly ClientLogger _logger;
 	private readonly SemaphoreSlim _connectionLock;
 	private readonly MessageServiceFactory _messageServiceFactory;
+	private readonly PeerRepository _repository;
+	private readonly EventBus _eventBus;
 
 	private Action? _OnDisconnected;
 	private TcpClient? _client;
-	private IPEndPoint? _lastKnownPeer;
+	private Peer? _lastKnownPeer;
 	private CancellationTokenSource? _connectCancelTokenSource;
 	private CancellationTokenSource? _reconnectCancelTokenSource;
 
-	public PeerConnectionClient(ClientLogger logger, MessageServiceFactory messageServiceFactory)
+	public PeerConnectionClient(ClientLogger logger, MessageServiceFactory messageServiceFactory, PeerRepository repository, EventBus eventBus)
 	{
 		_logger = logger;
 		_connectionLock = new SemaphoreSlim(1, 1);
 		_messageServiceFactory = messageServiceFactory;
+		_repository = repository;
+		_eventBus = eventBus;
 	}
 
 	public bool IsConnected => _client?.Connected == true;
@@ -35,8 +39,9 @@ public class PeerConnectionClient
 				// NB: if we were trying to reconnect before, we definitely aren't now.
 				_reconnectCancelTokenSource = _reconnectCancelTokenSource!.Recycle();
 				_client = incomingClient;
-				_lastKnownPeer = (IPEndPoint)_client.Client.RemoteEndPoint!;
+				_lastKnownPeer = _repository.FindByEndpoint((IPEndPoint)incomingClient.Client.RemoteEndPoint!);
 
+				_eventBus.OnPeerConnected(_lastKnownPeer);
 				await InitializeMessageChannel(_connectCancelTokenSource!.Token);		
 			}, 
 			_connectCancelTokenSource!.Token
@@ -54,10 +59,12 @@ public class PeerConnectionClient
 		await HandleConnectCommand(
 			async () =>
 			{
-				_lastKnownPeer = endpoint;
+				
+				_lastKnownPeer = _repository.FindByEndpoint(endpoint!);
 				_client = new TcpClient();
 				await _client.ConnectAsync(endpoint.Address, endpoint.Port, cancelToken);
 				await _logger.Info("Outgoing peer connection accepted!");
+				_eventBus.OnPeerConnected(_lastKnownPeer);
 
 				await InitializeMessageChannel(cancelToken);
 			},
@@ -110,6 +117,7 @@ public class PeerConnectionClient
 		_client?.Close();
 		_client = null;
 		_OnDisconnected?.Invoke();
+		_eventBus.OnPeerDisconnected(_lastKnownPeer!.Id);
 #pragma warning disable CS4014
 		TryReconnect();
 #pragma warning restore CS4014
@@ -125,7 +133,7 @@ public class PeerConnectionClient
 			var delay = TimeSpan.FromSeconds(1);
 			while (!cancelToken.IsCancellationRequested && delay.TotalSeconds < 10)
 			{
-				await MakeOutGoingConnection(_lastKnownPeer!, cancelToken);
+				await MakeOutGoingConnection(_lastKnownPeer!.Endpoint, cancelToken);
 				if (IsConnected) {
 					await _logger.Success("Reconnected to peer!");
 					return;

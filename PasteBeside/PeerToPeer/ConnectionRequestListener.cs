@@ -9,6 +9,7 @@ public class ConnectionRequestListener
 	private readonly ClientLogger _logger;
 	private readonly PeerConnectionClient _peerClient;
 	private readonly TcpListener _listener;
+	
 	private CancellationTokenSource? _cancelTokenSource;
 
 	public ConnectionRequestListener(ClientLogger logger, PeerConnectionClient peerClient)

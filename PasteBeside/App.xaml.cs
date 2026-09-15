@@ -47,9 +47,10 @@ public partial class App : Application
                         .AddSingleton<ClientLogger>()
 						// NB: peer-to-peer registrations
 						.AddSingleton<MessageServiceFactory>()
+						.AddSingleton<EventBus>()
+						.AddSingleton<PeerRepository>()
 						.AddSingleton<PeerConnectionClient>()
 						.AddSingleton<ConnectionRequestListener>()
-						.AddSingleton<EventBus>()
 						.AddSingleton<PeerDiscoveryService>();
 				})
 				.UseNavigation(ReactiveViewModelMappings.ViewModelMappings, RegisterRoutes)

@@ -18,6 +18,6 @@ public class EventBus
 	public void OnPeerConnected(PeerEventArgs args)
 		=> PeerConnected?.Invoke(this, args);
 
-	public void OnPeerDisConnected(PeerIdEventArgs args)
+	public void OnPeerDisconnected(PeerIdEventArgs args)
 		=> PeerDisconnected?.Invoke(this, args);
 }
