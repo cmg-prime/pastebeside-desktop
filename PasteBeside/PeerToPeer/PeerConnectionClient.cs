@@ -39,6 +39,9 @@ public class PeerConnectionClient
 				// NB: if we were trying to reconnect before, we definitely aren't now.
 				_reconnectCancelTokenSource = _reconnectCancelTokenSource!.Recycle();
 				_client = incomingClient;
+				// TODO: problem. For all the reasons suggested in PeerDiscoveryService, it's difficult to pin
+				// down a canonical address for a peer - even if we know the instance, we might not recognize
+				// the address! Implement a handshake here, and replace SearchByEndpoint with SearchById.
 				_lastKnownPeer = _repository.SearchByEndpoint((IPEndPoint)incomingClient.Client.RemoteEndPoint!);
 
 				_eventBus.OnPeerConnected(_lastKnownPeer!);

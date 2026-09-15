@@ -89,11 +89,11 @@ public class PeerDiscoveryService
 				var peer = new Peer(peerIdentifier, peerEndpoint);
 				_repository.AddPeer(peer);
 				_eventBus.OnPeerDiscovered(peer);
+				// NB: make sure new peers know about this client (*before* we might try to connect to them).
+				await Broadcast(cancelToken);
 				if (!_peerClient.IsConnected)
 					await _peerClient.MakeOutgoingConnection(peerEndpoint, cancelToken);
 
-				// NB: make sure new peers know about this client.
-				await Broadcast(cancelToken);
 				await _logger.Success("Peer discovered!");
 			}
 			catch (OperationCanceledException) { 
