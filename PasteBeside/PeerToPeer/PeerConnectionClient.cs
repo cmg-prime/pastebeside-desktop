@@ -59,7 +59,6 @@ public class PeerConnectionClient
 		await HandleConnectCommand(
 			async () =>
 			{
-				
 				_lastKnownPeer = _repository.FindByEndpoint(endpoint!);
 				_client = new TcpClient();
 				await _client.ConnectAsync(endpoint.Address, endpoint.Port, cancelToken);

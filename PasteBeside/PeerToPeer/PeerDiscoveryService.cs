@@ -87,8 +87,7 @@ public class PeerDiscoveryService
 				_repository.AddPeer(peer);
 				_eventBus.OnPeerDiscovered(peer);
 				if (!_peerClient.IsConnected)
-				{
-					await _peerClient.MakeOutgoingConnection(peerEndpoint, cancelToken);				}
+					await _peerClient.MakeOutgoingConnection(peerEndpoint, cancelToken);
 
 				// NB: make sure new peers know about this client.
 				await Broadcast(cancelToken);
