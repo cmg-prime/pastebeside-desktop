@@ -13,7 +13,6 @@ public class MessageServiceFactory(ClientLogger _logger, StreamService _streamSe
 	{
 		private readonly ClientLogger _logger;
 		private readonly StreamService _streamService;
-		private readonly SemaphoreSlim _sendLock;
 		private readonly TcpClient _client;
 		private readonly CancellationTokenSource _cancelTokenSource;
 
@@ -23,7 +22,6 @@ public class MessageServiceFactory(ClientLogger _logger, StreamService _streamSe
 			_streamService = streamService;
 			_client = client;
 			_cancelTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancelToken);
-			_sendLock = new(1, 1);
 		}
 
 		public async Task BeginListening()
@@ -63,7 +61,6 @@ public class MessageServiceFactory(ClientLogger _logger, StreamService _streamSe
 		public void Dispose()
 		{
 			_client.Close();
-			_sendLock.Dispose();
 			_cancelTokenSource.TearDown();
 		}
 	}
