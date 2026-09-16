@@ -46,9 +46,12 @@ public partial class App : Application
                         .Configure<HubOptions>(context.Configuration.GetSection(nameof(HubOptions)))
                         .AddSingleton<ClientLogger>()
 						// NB: peer-to-peer registrations
+						.AddSingleton<IdentityService>()
 						.AddSingleton<MessageServiceFactory>()
 						.AddSingleton<EventBus>()
 						.AddSingleton<PeerRepository>()
+						.AddSingleton<StreamService>()
+						.AddSingleton<HandshakeService>()
 						.AddSingleton<PeerConnectionClient>()
 						.AddSingleton<ConnectionRequestListener>()
 						.AddSingleton<PeerDiscoveryService>();

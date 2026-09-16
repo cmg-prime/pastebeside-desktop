@@ -12,7 +12,6 @@ public class PeerDiscoveryService
 	private const int _discoveryPort = 41234;
 	// NB: make app ID part of the payload so listeners can filter out unintentionally received datagrams.
 	private const string _appId = "pastebeside-p2p";
-	private readonly string _localIdentifier = PeerIdentifier.New();
 
 	private readonly ClientLogger _logger;
 	private readonly UdpClient _discoveryListener;
@@ -22,10 +21,11 @@ public class PeerDiscoveryService
 	private readonly CancellationTokenSource _cancelTokenSource;
 	private readonly PeerRepository _repository;
 	private readonly EventBus _eventBus;
+	private readonly IdentityService _identityService;
 
 	private IPEndPoint? _connectionListenerEndpoint;
 
-	public PeerDiscoveryService(ClientLogger logger, ConnectionRequestListener listener, PeerConnectionClient peerClient, PeerRepository repository, EventBus eventBus)
+	public PeerDiscoveryService(ClientLogger logger, ConnectionRequestListener listener, PeerConnectionClient peerClient, PeerRepository repository, EventBus eventBus, IdentityService identityService)
 	{
 		_logger = logger;
 		_cancelTokenSource = new CancellationTokenSource();
@@ -40,14 +40,15 @@ public class PeerDiscoveryService
 		_peerClient = peerClient;
 		_repository = repository;
 		_eventBus = eventBus;
+		_identityService = identityService;
 	}
 
 	public async Task BeginDiscovery()
 	{
 		_connectionListenerEndpoint = await _connectionListener.InitializeListener(_cancelTokenSource.Token);
-		var peer = new Peer(_localIdentifier, _connectionListenerEndpoint);
+		var peer = new Peer(_identityService.Identifier, _connectionListenerEndpoint);
 		_repository.AddPeer(peer);
-		_eventBus.OnLocalPeerConfigured(new Peer(_localIdentifier, _connectionListenerEndpoint));
+		_eventBus.OnLocalPeerConfigured(new Peer(_identityService.Identifier, _connectionListenerEndpoint));
 		_eventBus.OnPeerDiscovered(peer);
 
 #pragma warning disable CS4014
@@ -76,14 +77,11 @@ public class PeerDiscoveryService
 				var peerIdentifier = discoveryInfo[1];
 				var peerEndpoint = new IPEndPoint(datagram.RemoteEndPoint.Address, peerPort);
 				// NB: this may not catch loopback broadcasts, for which the source port is typically ephemeral.
-				if(_repository.SearchByEndpoint(peerEndpoint) is not null)
+				if(_repository.SearchById(peerIdentifier) is not null)
 					continue;
 
-				// NB: more robust loopback guard than address/port - determining your canonical address 
-				// involves a surprising number of edge cases. (E.g. ephemeral ports, multiple network 
-				// interfaces - switching between wifi, ethernet, VPN, or some other niche network interface
-				// during the same session - or what if your DHCP lease expires while your machine sleeps?)
-				if(peerIdentifier.Equals(_localIdentifier))
+
+				if(peerIdentifier.Equals(_identityService.Identifier))
 					continue;
 
 				var peer = new Peer(peerIdentifier, peerEndpoint);
@@ -115,7 +113,7 @@ public class PeerDiscoveryService
 		var broadcastEndpoint = new IPEndPoint(IPAddress.Broadcast, _discoveryPort);
 
 		try {
-			var discoveryPayload = Encoding.UTF8.GetBytes($"{_appId}:{_localIdentifier}:{_connectionListenerEndpoint!.Port}");
+			var discoveryPayload = Encoding.UTF8.GetBytes($"{_appId}:{_identityService.Identifier}:{_connectionListenerEndpoint!.Port}");
 			await _broadcaster.SendAsync(discoveryPayload, discoveryPayload.Length, broadcastEndpoint);
 			await _logger.Info("Discovery info broadcast.");
 		}

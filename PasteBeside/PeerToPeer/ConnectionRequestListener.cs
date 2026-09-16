@@ -37,7 +37,7 @@ public class ConnectionRequestListener
 	{
 		while (true)
 		{
-			TcpClient incomingTcpClient;
+			TcpClient? incomingTcpClient = null;
 			try
 			{
 				incomingTcpClient = await _listener.AcceptTcpClientAsync(_cancelTokenSource!.Token);
@@ -51,13 +51,21 @@ public class ConnectionRequestListener
 				await _logger.Info("Incoming peer connection accepted!");
 			}
 			catch (OperationCanceledException) { 
+				TearDownTcpClient(incomingTcpClient);
 				break; 
 			}
 			catch (Exception e) {
+				TearDownTcpClient(incomingTcpClient);
 				await _logger.Error($"Problem listening for peer connection: {e.Message}");
 				// NB: we don't stop listening on network error; not our problem.
 				continue;
 			}
+		}
+
+		static void TearDownTcpClient(TcpClient? tcpClient)
+		{
+			tcpClient?.Close();
+			tcpClient = null;
 		}
 	}
 

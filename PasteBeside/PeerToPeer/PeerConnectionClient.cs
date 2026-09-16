@@ -12,6 +12,7 @@ public class PeerConnectionClient
 	private readonly MessageServiceFactory _messageServiceFactory;
 	private readonly PeerRepository _repository;
 	private readonly EventBus _eventBus;
+	private readonly HandshakeService _handshakeService;
 
 	private Action? _OnDisconnected;
 	private TcpClient? _client;
@@ -19,13 +20,14 @@ public class PeerConnectionClient
 	private CancellationTokenSource? _connectCancelTokenSource;
 	private CancellationTokenSource? _reconnectCancelTokenSource;
 
-	public PeerConnectionClient(ClientLogger logger, MessageServiceFactory messageServiceFactory, PeerRepository repository, EventBus eventBus)
+	public PeerConnectionClient(ClientLogger logger, MessageServiceFactory messageServiceFactory, PeerRepository repository, EventBus eventBus, HandshakeService handshakeService)
 	{
 		_logger = logger;
 		_connectionLock = new SemaphoreSlim(1, 1);
 		_messageServiceFactory = messageServiceFactory;
 		_repository = repository;
 		_eventBus = eventBus;
+		_handshakeService = handshakeService;
 	}
 
 	public bool IsConnected => _client?.Connected == true;
@@ -38,11 +40,12 @@ public class PeerConnectionClient
 			{
 				// NB: if we were trying to reconnect before, we definitely aren't now.
 				_reconnectCancelTokenSource = _reconnectCancelTokenSource!.Recycle();
+				var (handshakeSucceeded, remotePeerId) = await PerformHandshake(incomingClient, cancelToken);
+				if (!handshakeSucceeded)
+					return;
+				
 				_client = incomingClient;
-				// TODO: problem. For all the reasons suggested in PeerDiscoveryService, it's difficult to pin
-				// down a canonical address for a peer - even if we know the instance, we might not recognize
-				// the address! Implement a handshake here, and replace SearchByEndpoint with SearchById.
-				_lastKnownPeer = _repository.SearchByEndpoint((IPEndPoint)incomingClient.Client.RemoteEndPoint!);
+				_lastKnownPeer = _repository.SearchById(remotePeerId!);
 
 				_eventBus.OnPeerConnected(_lastKnownPeer!);
 				await InitializeMessageChannel(_connectCancelTokenSource!.Token);		
@@ -62,9 +65,16 @@ public class PeerConnectionClient
 		await HandleConnectCommand(
 			async () =>
 			{
-				_lastKnownPeer = _repository.SearchByEndpoint(endpoint!);
 				_client = new TcpClient();
 				await _client.ConnectAsync(endpoint.Address, endpoint.Port, cancelToken);
+				var (handshakeSucceeded, remotePeerId) = await PerformHandshake(_client, cancelToken);
+				if (!handshakeSucceeded)
+				{
+					_client = null;
+					return;
+				}
+
+				_lastKnownPeer = _repository.SearchById(remotePeerId!);
 				await _logger.Info("Outgoing peer connection accepted!");
 				_eventBus.OnPeerConnected(_lastKnownPeer!);
 
@@ -72,6 +82,20 @@ public class PeerConnectionClient
 			},
 			cancelToken
 		);
+	}
+
+	private async Task<(bool IsSuccess, string? RemotePeerId)> PerformHandshake(TcpClient client, CancellationToken cancelToken)
+	{
+		// NB: we need this for a more robust loopback guard than address/port - determining your canonical
+		// address involves a surprising number of edge cases. (E.g. ephemeral ports, multiple network 
+		// interfaces - switching between wifi, ethernet, VPN, or some other niche network interface
+		// during the same session - or what if your DHCP lease expires while your machine sleeps?)
+		var remotePeerId = await _handshakeService.PerformHandshake(client, cancelToken);
+		if(remotePeerId is not null)
+			return (true, remotePeerId);
+
+		client.Close();
+		return (false, null);
 	}
 
 	private async Task HandleConnectCommand(Func<Task> Connect, CancellationToken cancelToken)
@@ -119,8 +143,11 @@ public class PeerConnectionClient
 		_client?.Close();
 		_client = null;
 		_OnDisconnected?.Invoke();
-		_repository.RemoveById(_lastKnownPeer!.Id);
-		_eventBus.OnPeerDisconnected(_lastKnownPeer!.Id);
+		if(_lastKnownPeer is not null)
+		{
+			_repository.RemoveById(_lastKnownPeer.Id);
+			_eventBus.OnPeerDisconnected(_lastKnownPeer.Id);	
+		}
 #pragma warning disable CS4014
 		TryReconnect();
 #pragma warning restore CS4014
