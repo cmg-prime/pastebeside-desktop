@@ -49,7 +49,7 @@ public partial class App : Application
 						.AddSingleton<IdentityService>()
 						.AddSingleton<MessageServiceFactory>()
 						.AddSingleton<EventBus>()
-						.AddSingleton<PeerRepository>()
+						.AddSingleton<DiscoveredPeerRepository>()
 						.AddSingleton<StreamService>()
 						.AddSingleton<HandshakeService>()
 						.AddSingleton<PeerConnectionClient>()

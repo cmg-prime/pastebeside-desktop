@@ -61,7 +61,8 @@ public class MessageServiceFactory(ClientLogger _logger, StreamService _streamSe
 		public void Dispose()
 		{
 			_client.Close();
-			_cancelTokenSource.TearDown();
+			_cancelTokenSource.Cancel();
+			_cancelTokenSource.Dispose();
 		}
 	}
 }

@@ -9,25 +9,32 @@ public class PeerConnectionClient
 {
 	private readonly ClientLogger _logger;
 	private readonly SemaphoreSlim _connectionLock;
+	private readonly SemaphoreSlim _reconnectionLock;
 	private readonly MessageServiceFactory _messageServiceFactory;
-	private readonly PeerRepository _repository;
+	private readonly DiscoveredPeerRepository _repository;
 	private readonly EventBus _eventBus;
 	private readonly HandshakeService _handshakeService;
+	private readonly CancellationTokenSource _shutdownSource;
 
 	private Action? _OnDisconnected;
 	private TcpClient? _client;
 	private Peer? _lastKnownPeer;
+	private CancellationToken? _rootToken;
 	private CancellationTokenSource? _connectCancelTokenSource;
-	private CancellationTokenSource? _reconnectCancelTokenSource;
+	private CancellationTokenSource? _reconnectSource;
+	private Task? _reconnectTask;
+	private bool _disposed;
 
-	public PeerConnectionClient(ClientLogger logger, MessageServiceFactory messageServiceFactory, PeerRepository repository, EventBus eventBus, HandshakeService handshakeService)
+	public PeerConnectionClient(ClientLogger logger, MessageServiceFactory messageServiceFactory, DiscoveredPeerRepository repository, EventBus eventBus, HandshakeService handshakeService)
 	{
 		_logger = logger;
 		_connectionLock = new SemaphoreSlim(1, 1);
+		_reconnectionLock = new SemaphoreSlim(1, 1);
 		_messageServiceFactory = messageServiceFactory;
 		_repository = repository;
 		_eventBus = eventBus;
 		_handshakeService = handshakeService;
+		_shutdownSource = new CancellationTokenSource();
 	}
 
 	public bool IsConnected => _client?.Connected == true;
@@ -38,9 +45,9 @@ public class PeerConnectionClient
 		await HandleConnectCommand(
 			async () =>
 			{
-				// NB: if we were trying to reconnect before, we definitely aren't now.
-				_reconnectCancelTokenSource = _reconnectCancelTokenSource!.Recycle();
-				var (handshakeSucceeded, remotePeerId) = await PerformHandshake(incomingClient, cancelToken);
+				// NB: an intentional connection takes precedence over an attempted reconnect.
+				_reconnectSource?.Cancel();
+				var (handshakeSucceeded, remotePeerId) = await PerformHandshake(incomingClient, _connectCancelTokenSource!.Token);
 				if (!handshakeSucceeded)
 					return;
 				
@@ -60,27 +67,37 @@ public class PeerConnectionClient
 		await MakeOutGoingConnection(endpoint, _connectCancelTokenSource!.Token);
 	}
 
-	private async Task MakeOutGoingConnection(IPEndPoint endpoint, CancellationToken cancelToken)
+	private async Task MakeOutGoingConnection(IPEndPoint endpoint, CancellationToken cancelToken, bool shouldReconnect = true)
 	{
 		await HandleConnectCommand(
 			async () =>
 			{
-				_client = new TcpClient();
-				await _client.ConnectAsync(endpoint.Address, endpoint.Port, cancelToken);
-				var (handshakeSucceeded, remotePeerId) = await PerformHandshake(_client, cancelToken);
-				if (!handshakeSucceeded)
+				TcpClient? client = new();
+				try
 				{
-					_client = null;
-					return;
+					await client.ConnectAsync(endpoint.Address, endpoint.Port, cancelToken);
+					var (handshakeSucceeded, remotePeerId) = await PerformHandshake(client, cancelToken);
+					if (!handshakeSucceeded)
+						return;
+
+					// NB: we own the local client - and manage its lifecycle - but once the handshake succeeds,
+					// we pass the connection to the instance client.
+					_client = client;
+					client = null;
+
+					_lastKnownPeer = _repository.SearchById(remotePeerId!);
+					await _logger.Info("Outgoing peer connection accepted!");
+					_eventBus.OnPeerConnected(_lastKnownPeer!);
+
+					await InitializeMessageChannel(cancelToken);
 				}
-
-				_lastKnownPeer = _repository.SearchById(remotePeerId!);
-				await _logger.Info("Outgoing peer connection accepted!");
-				_eventBus.OnPeerConnected(_lastKnownPeer!);
-
-				await InitializeMessageChannel(cancelToken);
+				finally
+				{
+					client?.Close();
+				}
 			},
-			cancelToken
+			cancelToken,
+			shouldReconnect
 		);
 	}
 
@@ -98,7 +115,7 @@ public class PeerConnectionClient
 		return (false, null);
 	}
 
-	private async Task HandleConnectCommand(Func<Task> Connect, CancellationToken cancelToken)
+	private async Task HandleConnectCommand(Func<Task> Connect, CancellationToken cancelToken, bool shouldReconnect = true)
 	{
 		await _connectionLock.WaitAsync(cancelToken);
 		try
@@ -108,9 +125,17 @@ public class PeerConnectionClient
 
 			await Connect();
 		}
+		catch (OperationCanceledException)
+		{
+			_client?.Close();
+			_client = null;
+			return;
+		}
 		catch
 		{
-			await HandleDisconnect();
+			if (_client is not null)
+				await HandleDisconnect(shouldReconnect);
+
 			return;
 		}
 		finally
@@ -119,77 +144,135 @@ public class PeerConnectionClient
 		}
 	}
 
-	private void GuaranteeLinkedCancellationTokens(CancellationToken cancelToken)
-	{
-		_connectCancelTokenSource ??= CancellationTokenSource.CreateLinkedTokenSource(cancelToken);	
-		_reconnectCancelTokenSource ??= CancellationTokenSource.CreateLinkedTokenSource(cancelToken);
-	}
-
 	private async Task InitializeMessageChannel(CancellationToken cancelToken)
 	{
-		var messageService = _messageServiceFactory.Create(
-			_client!, 
-			cancelToken
-		);
+		var messageService = _messageServiceFactory.Create(_client!, cancelToken);
 		await messageService.BeginListening();
 		_OnDisconnected = messageService.Dispose;
 	}
 
-	private async Task HandleDisconnect()
+	private async Task HandleDisconnect(bool shouldReconnect)
 	{
 		await _logger.Error("Disconnected from peer.");
-		_connectCancelTokenSource = _connectCancelTokenSource!.Recycle();
+		TearDown(_connectCancelTokenSource);
+		// TODO: I don't recognize this pattern
+		_connectCancelTokenSource = _rootToken is { } rootToken
+			? CancellationTokenSource.CreateLinkedTokenSource(rootToken)
+			: null;
+
 		// NB: TcpClient.Close calls .Dispose.
 		_client?.Close();
 		_client = null;
 		_OnDisconnected?.Invoke();
+		_OnDisconnected = null;
 		if(_lastKnownPeer is not null)
 		{
 			_repository.RemoveById(_lastKnownPeer.Id);
 			_eventBus.OnPeerDisconnected(_lastKnownPeer.Id);	
 		}
-#pragma warning disable CS4014
-		TryReconnect();
-#pragma warning restore CS4014
+		if(shouldReconnect)
+			StartReconnect();
 	}
 
-	private async Task TryReconnect()
+	private void StartReconnect()
 	{
-		if (_lastKnownPeer != null)
+		// NB: guard against dangerous usage (called before initialization or after disposal)
+		if (_disposed || _rootToken is null || _lastKnownPeer is null)
+			return;
+
+		if (_reconnectTask is { IsCompleted: false })
+			return;
+
+		TearDown(_reconnectSource);
+		_reconnectSource = CancellationTokenSource.CreateLinkedTokenSource(_rootToken.Value, _shutdownSource.Token);
+		_reconnectTask = TryReconnect(_reconnectSource.Token);
+	}
+
+	private async Task TryReconnect(CancellationToken cancelToken)
+	{
+		// NB: need to try-catch entering the lock separately - otherwise we risk entering
+		// a finally block that would throw off the semaphore count.
+		try
 		{
-			await _logger.Info("Attempting to reconnect...");
-			
-			var cancelToken = _reconnectCancelTokenSource!.Token;
-			var delay = TimeSpan.FromSeconds(1);
-			while (!cancelToken.IsCancellationRequested && delay.TotalSeconds < 10)
+			await _reconnectionLock.WaitAsync(cancelToken);
+		}
+		catch (OperationCanceledException)
+		{
+			return;
+		}
+		
+		try
+		{
+			var peer = _lastKnownPeer;
+			if (peer != null)
 			{
-				await MakeOutGoingConnection(_lastKnownPeer!.Endpoint, cancelToken);
-				if (IsConnected) {
-					_repository.AddPeer(_lastKnownPeer);
-					await _logger.Success("Reconnected to peer!");
-					return;
-				} 
+				await _logger.Info("Attempting to reconnect...");
+				var delay = TimeSpan.FromSeconds(1);
+				var timeoutLimitInSeconds = 10;
+				while (!cancelToken.IsCancellationRequested && delay.TotalSeconds < timeoutLimitInSeconds)
+				{
+					await MakeOutGoingConnection(peer.Endpoint, cancelToken, false);
+					if (IsConnected) {
+						_repository.AddPeer(peer);
+						await _logger.Success("Reconnected to peer!");
+						return;
+					} 
 
-				try {
-					await Task.Delay(delay, cancelToken);
-				}
-				catch (OperationCanceledException) {
-					_reconnectCancelTokenSource = _reconnectCancelTokenSource.Recycle();			
-					break;
-				}
+					// TODO: why add this inner try-catch? Why not catch this exception in the outer?
+					try {
+						await Task.Delay(delay, cancelToken);
+					}
+					catch (OperationCanceledException) {
+						return;
+					}
 
-				delay = TimeSpan.FromSeconds(delay.TotalSeconds * 1.5);
+					delay = TimeSpan.FromSeconds(delay.TotalSeconds * 1.5);
+				}
+				// NB: handle a retry timeout separately from a cancellation request.
+				if (delay.TotalSeconds >= timeoutLimitInSeconds)
+				{
+					if (ReferenceEquals(_lastKnownPeer, peer))
+						_lastKnownPeer = null;
+
+					await _logger.Error("Unable to reconnect.");	
+				}
 			}
 		}
-		await _logger.Error("Unable to reconnect.");
+		finally
+		{
+			_reconnectionLock.Release();
+		}
+	}
+
+	// TODO: is this even doing anything?
+	private void GuaranteeLinkedCancellationTokens(CancellationToken cancelToken)
+	{
+		_rootToken ??= cancelToken;
+		_connectCancelTokenSource ??= CancellationTokenSource.CreateLinkedTokenSource(cancelToken);	
+	}
+
+	public static void TearDown(CancellationTokenSource? source)
+	{
+		if(source is null)
+			return;
+
+		source.Cancel();
+		source.Dispose();
 	}
 
 	public void Dispose()
 	{
-		_reconnectCancelTokenSource?.TearDown();
-		_connectCancelTokenSource?.TearDown();
-		_client?.Close();
-		_OnDisconnected?.Invoke();
-	}
+		if (_disposed)
+			return;
 
+		_disposed = true;
+		TearDown(_shutdownSource);
+		TearDown(_connectCancelTokenSource);
+		// TODO: why no TearDown here?
+		_reconnectSource?.Cancel();
+		_client?.Close();
+		_client = null;
+		_OnDisconnected?.Invoke();
+		_OnDisconnected = null;	
+	}
 }

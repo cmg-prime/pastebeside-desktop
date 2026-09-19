@@ -19,13 +19,13 @@ public class PeerDiscoveryService
 	private readonly PeerConnectionClient _peerClient;
 	private readonly UdpClient _broadcaster;
 	private readonly CancellationTokenSource _cancelTokenSource;
-	private readonly PeerRepository _repository;
+	private readonly DiscoveredPeerRepository _repository;
 	private readonly EventBus _eventBus;
 	private readonly IdentityService _identityService;
 
 	private IPEndPoint? _connectionListenerEndpoint;
 
-	public PeerDiscoveryService(ClientLogger logger, ConnectionRequestListener listener, PeerConnectionClient peerClient, PeerRepository repository, EventBus eventBus, IdentityService identityService)
+	public PeerDiscoveryService(ClientLogger logger, ConnectionRequestListener listener, PeerConnectionClient peerClient, DiscoveredPeerRepository repository, EventBus eventBus, IdentityService identityService)
 	{
 		_logger = logger;
 		_cancelTokenSource = new CancellationTokenSource();
