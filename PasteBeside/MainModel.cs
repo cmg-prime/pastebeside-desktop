@@ -7,13 +7,13 @@ namespace PasteBeside;
 internal partial record MainModel
 {
 	private readonly ClientLogger _logger;
-	private readonly PeerConnectionClient _peerClient;
+	private readonly ConnectionBroker _connectionBroker;
 	private readonly EventBus _eventBus;
 
-	public MainModel(ClientLogger clientLogger, PeerDiscoveryService peerService, PeerConnectionClient peerClient, EventBus eventBus)
+	public MainModel(ClientLogger clientLogger, PeerDiscoveryService peerService, ConnectionBroker connectionBroker, EventBus eventBus)
 	{
 		_logger = clientLogger;
-		_peerClient = peerClient;
+		_connectionBroker = connectionBroker;
 		_eventBus = eventBus;
 		
 		Messages = _logger.Messages;
@@ -68,7 +68,7 @@ internal partial record MainModel
 			return;
 		}
 		
-		await _peerClient.MakeOutgoingConnection(viewModel.AvailablePeer.Endpoint, new CancellationToken());
+		await _connectionBroker.MakeOutgoingConnection(viewModel.AvailablePeer.Endpoint, new CancellationToken());
 	}
 
 }

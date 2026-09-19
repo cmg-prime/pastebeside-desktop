@@ -7,15 +7,15 @@ namespace PasteBeside.PeerToPeer;
 public class ConnectionRequestListener
 {
 	private readonly ClientLogger _logger;
-	private readonly PeerConnectionClient _peerClient;
+	private readonly ConnectionBroker _connectionBroker;
 	private readonly TcpListener _listener;
 
 	private CancellationTokenSource? _cancelTokenSource;
 
-	public ConnectionRequestListener(ClientLogger logger, PeerConnectionClient peerClient)
+	public ConnectionRequestListener(ClientLogger logger, ConnectionBroker connectionBroker)
 	{
 		_logger = logger;
-		_peerClient = peerClient;
+		_connectionBroker = connectionBroker;
 		_listener = new TcpListener(IPAddress.Any, 0);
 	}
 
@@ -42,12 +42,13 @@ public class ConnectionRequestListener
 			{
 				incomingTcpClient = await _listener.AcceptTcpClientAsync(_cancelTokenSource!.Token);
 				// NB: if we were already connected, don't boot the current peer in favor of the new one.
-				if (_peerClient.IsConnected) {
+				// TODO: should the connection broker even know this?
+				if (_connectionBroker.IsConnected) {
 					incomingTcpClient.Close();
 					return;
 				}
 
-				await _peerClient.MakeIncomingConnection(incomingTcpClient, _cancelTokenSource.Token);
+				await _connectionBroker.MakeIncomingConnection(incomingTcpClient, _cancelTokenSource.Token);
 				await _logger.Info("Incoming peer connection accepted!");
 			}
 			catch (OperationCanceledException) { 
@@ -73,6 +74,5 @@ public class ConnectionRequestListener
 	{
 		_cancelTokenSource?.Cancel();
 		_listener.Dispose();
-		_peerClient.Dispose();
 	}
 }

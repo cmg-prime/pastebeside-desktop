@@ -16,16 +16,17 @@ public class PeerDiscoveryService
 	private readonly ClientLogger _logger;
 	private readonly UdpClient _discoveryListener;
 	private readonly ConnectionRequestListener _connectionListener;
-	private readonly PeerConnectionClient _peerClient;
 	private readonly UdpClient _broadcaster;
 	private readonly CancellationTokenSource _cancelTokenSource;
 	private readonly DiscoveredPeerRepository _repository;
 	private readonly EventBus _eventBus;
 	private readonly IdentityService _identityService;
+	private readonly ConnectionBroker _connectionBroker;
+
 
 	private IPEndPoint? _connectionListenerEndpoint;
 
-	public PeerDiscoveryService(ClientLogger logger, ConnectionRequestListener listener, PeerConnectionClient peerClient, DiscoveredPeerRepository repository, EventBus eventBus, IdentityService identityService)
+	public PeerDiscoveryService(ClientLogger logger, ConnectionRequestListener listener, ConnectionBroker connectionBroker, DiscoveredPeerRepository repository, EventBus eventBus, IdentityService identityService)
 	{
 		_logger = logger;
 		_cancelTokenSource = new CancellationTokenSource();
@@ -37,7 +38,7 @@ public class PeerDiscoveryService
 		_discoveryListener.Client.Bind(new IPEndPoint(IPAddress.Any, _discoveryPort));
 		_broadcaster = new UdpClient { EnableBroadcast = true };
 		_connectionListener = listener;
-		_peerClient = peerClient;
+		_connectionBroker = connectionBroker;
 		_repository = repository;
 		_eventBus = eventBus;
 		_identityService = identityService;
@@ -80,7 +81,6 @@ public class PeerDiscoveryService
 				if(_repository.SearchById(peerIdentifier) is not null)
 					continue;
 
-
 				if(peerIdentifier.Equals(_identityService.Identifier))
 					continue;
 
@@ -89,8 +89,7 @@ public class PeerDiscoveryService
 				_eventBus.OnPeerDiscovered(peer);
 				// NB: make sure new peers know about this client (*before* we might try to connect to them).
 				await Broadcast(cancelToken);
-				if (!_peerClient.IsConnected)
-					await _peerClient.MakeOutgoingConnection(peerEndpoint, cancelToken);
+				await _connectionBroker.MakeOutgoingConnection(peerEndpoint, cancelToken);
 
 				await _logger.Success("Peer discovered!");
 			}
@@ -127,7 +126,6 @@ public class PeerDiscoveryService
 		_cancelTokenSource.Cancel();
 		_discoveryListener.Dispose();
 		_connectionListener.Dispose();
-		_peerClient.Dispose();
 		_broadcaster.Dispose();
 	}
 }
