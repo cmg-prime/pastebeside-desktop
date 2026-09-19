@@ -14,7 +14,6 @@ public class ConnectionHandler: IDisposable
 	private readonly ReconnectService _reconnectService;
 	private readonly SemaphoreSlim _connectionLock;
 
-
 	private CancellationTokenSource? _reconnectCancelTokenSource;
 	private bool _isDisposed;
 	private Action? _OnDisconnected;
