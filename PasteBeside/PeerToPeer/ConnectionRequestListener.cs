@@ -7,12 +7,12 @@ namespace PasteBeside.PeerToPeer;
 public class ConnectionRequestListener
 {
 	private readonly ClientLogger _logger;
-	private readonly ConnectionBroker _connectionBroker;
+	private readonly DataChannel _connectionBroker;
 	private readonly TcpListener _listener;
 
 	private CancellationTokenSource? _cancelTokenSource;
 
-	public ConnectionRequestListener(ClientLogger logger, ConnectionBroker connectionBroker)
+	public ConnectionRequestListener(ClientLogger logger, DataChannel connectionBroker)
 	{
 		_logger = logger;
 		_connectionBroker = connectionBroker;
@@ -27,6 +27,7 @@ public class ConnectionRequestListener
 		await _logger.Info("Listening for incoming connection requests...");
 		_listener.Start();
 #pragma warning disable CS4014
+		// TODO: run in background?
 		ExecuteListenLoop();
 #pragma warning restore CS4014
 

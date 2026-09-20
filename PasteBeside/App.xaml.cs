@@ -57,7 +57,7 @@ public partial class App : Application
 						.AddSingleton<OutgoingConnectionCommand>()
 						.AddSingleton<ReconnectService>()
 						.AddSingleton<ConnectionHandler>()
-						.AddSingleton<ConnectionBroker>()
+						.AddSingleton<DataChannel>()
 						.AddSingleton<ConnectionRequestListener>()
 						.AddSingleton<PeerDiscoveryService>();
 				})

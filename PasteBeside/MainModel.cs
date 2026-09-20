@@ -7,10 +7,10 @@ namespace PasteBeside;
 internal partial record MainModel
 {
 	private readonly ClientLogger _logger;
-	private readonly ConnectionBroker _connectionBroker;
+	private readonly DataChannel _connectionBroker;
 	private readonly EventBus _eventBus;
 
-	public MainModel(ClientLogger clientLogger, PeerDiscoveryService peerService, ConnectionBroker connectionBroker, EventBus eventBus)
+	public MainModel(ClientLogger clientLogger, PeerDiscoveryService peerService, DataChannel connectionBroker, EventBus eventBus)
 	{
 		_logger = clientLogger;
 		_connectionBroker = connectionBroker;

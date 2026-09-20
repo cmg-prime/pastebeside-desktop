@@ -8,7 +8,6 @@ public class ConnectionHandler: IDisposable
 {
 	private readonly ClientLogger _logger;
 	private readonly EventBus _eventBus;
-	private readonly MessageServiceFactory _messageServiceFactory;
 	private readonly LastConnectedPeerRepository _lastConnectedPeerRepository;
 	private readonly DiscoveredPeerRepository _discoveryRepository;
 	private readonly ReconnectService _reconnectService;
@@ -18,22 +17,20 @@ public class ConnectionHandler: IDisposable
 	private CancellationTokenSource? _connectCancelTokenSource;
 	private CancellationTokenSource? _reconnectCancelTokenSource;
 	private bool _hasBeenDisposed;
-	private Action? _OnDisconnected;
 
-	public ConnectionHandler(ClientLogger logger, EventBus eventBus, MessageServiceFactory messageServiceFactory, LastConnectedPeerRepository lastConnectedPeerRepository, DiscoveredPeerRepository discoveryRepository, ReconnectService reconnectService)
+	public ConnectionHandler(ClientLogger logger, EventBus eventBus, LastConnectedPeerRepository lastConnectedPeerRepository, DiscoveredPeerRepository discoveryRepository, ReconnectService reconnectService)
 	{
 		_logger = logger;
 		_eventBus = eventBus;
 		_connectionLock = new(1,1);
 		_disposalLock = new();
-		_messageServiceFactory = messageServiceFactory;
 		_lastConnectedPeerRepository = lastConnectedPeerRepository;
 		_discoveryRepository = discoveryRepository;
 		_reconnectService = reconnectService;
 	}
 	
 	// TODO: instead of this Func, should we pass in some kind of ConnectionCommand?
-	public async Task<MessageService?> HandleConnectCommand(Func<CancellationToken, Task<TcpClient?>> Connect, CancellationToken cancelToken)
+	public async Task<TcpClient?> HandleConnectCommand(Func<CancellationToken, Task<TcpClient?>> Connect, CancellationToken cancelToken)
 	{
 		await _connectionLock.WaitAsync(cancelToken);
 		var shouldHandleDisconnect = false;
@@ -59,11 +56,11 @@ public class ConnectionHandler: IDisposable
 			reconnectCancelTokenSource?.Cancel();
 			reconnectCancelTokenSource?.Dispose();
 
-			var messageClient = await Connect((CancellationToken)stableCancelToken);
-			if (messageClient is null)
+			var client = await Connect((CancellationToken)stableCancelToken);
+			if (client is null)
 				return null;
 
-			return await InitializeMessageChannel(messageClient, (CancellationToken)stableCancelToken);
+			return client;
 		}
 		catch (OperationCanceledException) { }
 		catch 
@@ -86,40 +83,7 @@ public class ConnectionHandler: IDisposable
 		return shouldHandleDisconnect ? await HandleDisconnect(cancelToken) : null;
 	}
 
-	private async Task<MessageService> InitializeMessageChannel(TcpClient client, CancellationToken cancelToken)
-	{
-		var messageService = _messageServiceFactory.Create(client, cancelToken);
-		try
-		{
-			await messageService.BeginListening();
-			// NB: if we intentionally start a new connection while holding an existing connection, we
-			// need to dispose of the existing resources as best we can (ideally without blocking the lock).
-			Action? DisposePreviousService = null;
-			lock (_disposalLock)
-			{
-				// NB: have to guard here: the class may have been disposed while we awaited e.g. BeginListening.
-				if (_hasBeenDisposed)
-				{
-					messageService.Dispose();
-				}
-				else
-				{
-					DisposePreviousService = _OnDisconnected;
-					_OnDisconnected = messageService.Dispose;	
-				}
-			}	
-			DisposePreviousService?.Invoke();
-		}
-		catch
-		{
-			messageService.Dispose();
-			throw;
-		}
-
-		return messageService;
-	}
-
-	private async Task<MessageService?> HandleDisconnect(CancellationToken cancelToken)
+	private async Task<TcpClient?> HandleDisconnect(CancellationToken cancelToken)
 	{
 		CancellationTokenSource? reconnectSource = null;
 		CancellationToken? reconnectCancelToken = null;
@@ -136,8 +100,6 @@ public class ConnectionHandler: IDisposable
 			}
 			if (!_hasBeenDisposed)
 			{
-				_OnDisconnected?.Invoke();
-				_OnDisconnected = null;	
 				reconnectSource = CancellationTokenSource.CreateLinkedTokenSource(cancelToken);
 				reconnectCancelToken = reconnectSource.Token;
             	_reconnectCancelTokenSource = reconnectSource;
@@ -150,11 +112,11 @@ public class ConnectionHandler: IDisposable
 			{
 				// NB: the class field can be canceled or disposed from another operation before we need it here,
 				// so we use a stable reference instead of reading from the source to avoid clashing state updates.
-				var messageClient = await _reconnectService.Reconnect([(CancellationToken)reconnectCancelToken]);
-				if(messageClient is null)
+				var client = await _reconnectService.Reconnect([(CancellationToken)reconnectCancelToken]);
+				if(client is null)
 					return null;
 				
-				return await InitializeMessageChannel(messageClient, (CancellationToken)reconnectCancelToken);
+				return client;
 			}
 			finally
 			{
@@ -178,7 +140,6 @@ public class ConnectionHandler: IDisposable
 		// reassigned in the interim.
 		CancellationTokenSource? reconnectCancelTokenSource;
 		CancellationTokenSource? connectCancelTokenSource;
-		Action? OnDisconnected;
 		lock (_disposalLock)
 		{
 			if (_hasBeenDisposed)
@@ -189,14 +150,11 @@ public class ConnectionHandler: IDisposable
 			_reconnectCancelTokenSource = null;
 			connectCancelTokenSource = _connectCancelTokenSource;
 			_connectCancelTokenSource = null;
-			OnDisconnected = _OnDisconnected;
-			_OnDisconnected = null;	
 		}
 		reconnectCancelTokenSource?.Cancel();
 		reconnectCancelTokenSource?.Dispose();
 		connectCancelTokenSource?.Cancel();
 		connectCancelTokenSource?.Dispose();
-		OnDisconnected?.Invoke();
 		// NB: wait for any extant TryReconnect calls to release the lock before disposing it.
 		_connectionLock.Wait();
 		_connectionLock.Release();

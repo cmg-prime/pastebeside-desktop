@@ -21,12 +21,12 @@ public class PeerDiscoveryService
 	private readonly DiscoveredPeerRepository _repository;
 	private readonly EventBus _eventBus;
 	private readonly IdentityService _identityService;
-	private readonly ConnectionBroker _connectionBroker;
+	private readonly DataChannel _connectionBroker;
 
 
 	private IPEndPoint? _connectionListenerEndpoint;
 
-	public PeerDiscoveryService(ClientLogger logger, ConnectionRequestListener listener, ConnectionBroker connectionBroker, DiscoveredPeerRepository repository, EventBus eventBus, IdentityService identityService)
+	public PeerDiscoveryService(ClientLogger logger, ConnectionRequestListener listener, DataChannel connectionBroker, DiscoveredPeerRepository repository, EventBus eventBus, IdentityService identityService)
 	{
 		_logger = logger;
 		_cancelTokenSource = new CancellationTokenSource();
