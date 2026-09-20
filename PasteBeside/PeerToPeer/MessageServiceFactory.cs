@@ -1,13 +1,13 @@
 using System.Net.Sockets;
-using System.Text;
 using PasteBeside.ClientFriendlyLog;
+using PasteBeside.Eventing;
 
 namespace PasteBeside.PeerToPeer;
 
-public class MessageServiceFactory(ClientLogger _logger, StreamService _streamService)
+public class MessageServiceFactory(ClientLogger _logger, StreamService _streamService, EventBus eventBus)
 {
 	public MessageService Create(TcpClient client, CancellationToken cancelToken) 
-		=> new TcpMessageService(_logger, _streamService, client, cancelToken);
+		=> new TcpMessageService(_logger, _streamService, client, eventBus, cancelToken);
 
 	private class TcpMessageService : MessageService
 	{
@@ -15,12 +15,14 @@ public class MessageServiceFactory(ClientLogger _logger, StreamService _streamSe
 		private readonly StreamService _streamService;
 		private readonly TcpClient _client;
 		private readonly CancellationTokenSource _cancelTokenSource;
+		private readonly EventBus _eventBus;
 
-		public TcpMessageService(ClientLogger logger, StreamService streamService, TcpClient client, CancellationToken cancelToken)
+		public TcpMessageService(ClientLogger logger, StreamService streamService, TcpClient client, EventBus eventBus, CancellationToken cancelToken)
 		{
 			_logger = logger;
 			_streamService = streamService;
 			_client = client;
+			_eventBus = eventBus;
 			_cancelTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancelToken);
 		}
 
@@ -37,7 +39,7 @@ public class MessageServiceFactory(ClientLogger _logger, StreamService _streamSe
 					if(!readAttempt.IsSucess)
 						break;
 
-					await _logger.Success($"Message received: {readAttempt.Message}");
+					_eventBus.OnMessageReceived(readAttempt.Message!);
 				}
 			}
 			catch (OperationCanceledException) { 

@@ -1,3 +1,5 @@
+// TODO: not technically a circular reference, but a circular namespace dependency. Factor Peer out into
+// a shared feature.
 using PasteBeside.PeerToPeer;
 
 namespace PasteBeside.Eventing;

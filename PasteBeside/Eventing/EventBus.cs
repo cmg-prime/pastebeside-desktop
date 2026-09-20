@@ -8,6 +8,7 @@ public class EventBus
 	public event EventHandler<PeerEventArgs>? PeerDiscovered;
 	public event EventHandler<PeerEventArgs>? PeerConnected;
 	public event EventHandler<PeerIdEventArgs>? PeerDisconnected;
+	public event EventHandler<MessageEventArgs>? MessageReceived;
 
 	public void OnLocalPeerConfigured(PeerEventArgs args)
 		=> LocalPeerConfigured?.Invoke(this, args);
@@ -20,4 +21,7 @@ public class EventBus
 
 	public void OnPeerDisconnected(PeerIdEventArgs args)
 		=> PeerDisconnected?.Invoke(this, args);
+
+	public void OnMessageReceived(MessageEventArgs args)
+		=> MessageReceived?.Invoke(this, args);
 }

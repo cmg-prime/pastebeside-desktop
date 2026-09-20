@@ -5,6 +5,8 @@ namespace PasteBeside;
 
 public sealed partial class MainPage : Page
 {
+	private static int _basicMargin = 8;
+
     public MainPage()
     {
 		this.DataContext<MainViewModel>((page, viewModel) => page
@@ -15,8 +17,9 @@ public sealed partial class MainPage : Page
 						.ColumnDefinitions("3*, *")
 						.Children(
 							new Grid()
-								.RowDefinitions("*, 3*")
+								.RowDefinitions("*, 3*, auto")
 								.Children(
+									// Available and local peers
 									new Grid()
 										.ColumnDefinitions("*, *")
 										.Children(
@@ -69,8 +72,28 @@ public sealed partial class MainPage : Page
 													)
 											).Grid(column: 1)
 										).Grid(row: 0),
-									BasicBorder(new TextBlock().Text("Hello, Uno!")).Grid(row: 1)
+									// Text input
+									BasicBorder(
+										new TextBox()
+											.Text(text => text
+												.Binding(() => viewModel.PeerToPeerTransmission)
+												.TwoWay()
+												.UpdateSourceTrigger(UpdateSourceTrigger.PropertyChanged)
+											)
+									).Grid(row: 1),
+									// Transmit button
+									new AutoLayout()
+										.HorizontalAlignment(HorizontalAlignment.Center)
+										.Children(
+											new Button()
+												.Content("Send")
+												.Margin(0, 0, 0, _basicMargin)
+												.Style(Theme.Button.Styles.Filled)
+												.Command(() => viewModel.SendMessage)
+										)
+									.Grid(row: 2)
 								).Grid(column: 0),
+							// Log messages
 							BasicBorder(
 								new SlimListView()
 									.Background(Theme.Brushes.Background.Default)
@@ -145,7 +168,7 @@ public sealed partial class MainPage : Page
 		.BorderBrush(Theme.Brushes.Outline.Variant.Default)
 		.BorderThickness(1)
 		.CornerRadius(8)
-		.Margin(8)
+		.Margin(_basicMargin)
 		.Padding(12)
 		.Child(child);
 

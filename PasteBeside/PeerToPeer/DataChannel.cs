@@ -1,26 +1,29 @@
 using System.Net;
 using System.Net.Sockets;
+using PasteBeside.ClientFriendlyLog;
 
 namespace PasteBeside.PeerToPeer;
 
 public class DataChannel: IDisposable
 {
+	private readonly ClientLogger _logger;
 	private readonly OutgoingConnectionCommand _outgoingConnectionCommand;
 	private readonly IncomingConnectionCommand _incomingConnectionCommand;
 	private readonly ConnectionHandler _connectionHandler;
 	private readonly MessageServiceFactory _messageServiceFactory;
-	private readonly Lock _disposalLock;
+	private readonly Lock _disposeLock;
 	
 	private MessageService? _messageService;
 	private bool _hasBeenDisposed;
 
-	public DataChannel(OutgoingConnectionCommand outgoingConnectionCommand, IncomingConnectionCommand incomingConnectionCommand, ConnectionHandler connectionHandler, MessageServiceFactory messageServiceFactory)
+	public DataChannel(ClientLogger logger, OutgoingConnectionCommand outgoingConnectionCommand, IncomingConnectionCommand incomingConnectionCommand, ConnectionHandler connectionHandler, MessageServiceFactory messageServiceFactory)
 	{
+		_logger = logger;
 		_outgoingConnectionCommand = outgoingConnectionCommand;
 		_incomingConnectionCommand = incomingConnectionCommand;
 		_connectionHandler = connectionHandler;
 		_messageServiceFactory = messageServiceFactory;
-		_disposalLock = new();
+		_disposeLock = new();
 	}
 
 	public bool IsConnected => _messageService is not null;
@@ -43,6 +46,23 @@ public class DataChannel: IDisposable
 		_messageService = await InitializeMessageChannel(client, rootCancelToken);
 	}
 
+	public async Task SendMessage(string message)
+	{
+		Func<string, Task>? Send = null;
+		lock (_disposeLock)
+		{
+			if(_messageService is not null)
+				Send = _messageService.Send;
+		}
+
+		if(Send is null)
+		{
+			await _logger.Info("Message broker inoperative. Message not sent.");
+			return;	
+		}
+		await Send!.Invoke(message);
+	}
+
 	private async Task<MessageService?> InitializeMessageChannel(TcpClient? client, CancellationToken cancelToken)
 	{
 		if(client is null)
@@ -55,7 +75,7 @@ public class DataChannel: IDisposable
 			// NB: if we intentionally start a new connection while holding an existing connection, we
 			// need to dispose of the existing resources as best we can (ideally without blocking the lock).
 			Action? DisposePreviousService = null;
-			lock (_disposalLock)
+			lock (_disposeLock)
 			{
 				// NB: have to guard here: the class may have been disposed while we awaited e.g. BeginListening.
 				if (_hasBeenDisposed)
@@ -81,7 +101,7 @@ public class DataChannel: IDisposable
 	public void Dispose()
 	{
 		Action? OnDisconnected;
-		lock (_disposalLock)
+		lock (_disposeLock)
 		{
 			OnDisconnected = _messageService is not null ? _messageService.Dispose : null;	
 			_hasBeenDisposed = true;		

@@ -7,19 +7,20 @@ namespace PasteBeside;
 internal partial record MainModel
 {
 	private readonly ClientLogger _logger;
-	private readonly DataChannel _connectionBroker;
+	private readonly DataChannel _dataChannel;
 	private readonly EventBus _eventBus;
 
-	public MainModel(ClientLogger clientLogger, PeerDiscoveryService peerService, DataChannel connectionBroker, EventBus eventBus)
+	public MainModel(ClientLogger clientLogger, PeerDiscoveryService peerService, DataChannel dataChannel, EventBus eventBus)
 	{
 		_logger = clientLogger;
-		_connectionBroker = connectionBroker;
+		_dataChannel = dataChannel;
 		_eventBus = eventBus;
 		
 		Messages = _logger.Messages;
 		LocalPeer = State<Peer>.Empty(this);
 		RemotePeer = State<Peer>.Empty(this);
 		AvailablePeers = State<IList<AvailablePeerViewModel>>.Value(this, () => []);
+		PeerToPeerTransmission = State<string>.Empty(this);
 
 		_eventBus.LocalPeerConfigured += async (sender, args) =>
 		{
@@ -48,6 +49,10 @@ internal partial record MainModel
 			await RemotePeer!.UpdateAsync(peer => null);
 			await _logger.Error($"Peer {args.PeerId} disconnected.");
 		};
+		_eventBus.MessageReceived += async (sender, args) =>
+		{
+			await _logger.Success($"Message received: {args.Message}");	
+		};
 
 		// TODO: can this run in a background service?
 #pragma warning disable CS4014
@@ -59,6 +64,16 @@ internal partial record MainModel
 	public IState<Peer> LocalPeer { get; }
 	public IState<Peer> RemotePeer { get; }
 	public IState<IList<AvailablePeerViewModel>> AvailablePeers { get; }
+	public IState<string> PeerToPeerTransmission { get; }
+
+	public async Task SendMessage()
+	{
+		var message = await PeerToPeerTransmission;
+		if(message.IsNullOrWhiteSpace())
+			return;
+		
+		await _dataChannel.SendMessage(message!);
+	}
 
 	public async Task ConnectToPeer(AvailablePeerViewModel viewModel)
 	{
@@ -68,7 +83,7 @@ internal partial record MainModel
 			return;
 		}
 		
-		await _connectionBroker.MakeOutgoingConnection(viewModel.AvailablePeer.Endpoint, new CancellationToken());
+		await _dataChannel.MakeOutgoingConnection(viewModel.AvailablePeer.Endpoint, new CancellationToken());
 	}
 
 }
