@@ -46,8 +46,10 @@ public class MessageServiceFactory(ClientLogger _logger, StreamService _streamSe
 			catch (Exception e) {
 				await _logger.Error($"Problem listening for peer connection: {e.Message}");
 			}
-
-			stream.Dispose();
+			finally
+			{
+				stream.Dispose();	
+			}
 		}
 
 		public async Task Send(string message)
