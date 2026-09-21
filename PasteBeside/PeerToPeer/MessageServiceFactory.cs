@@ -44,9 +44,11 @@ public class MessageServiceFactory(ClientLogger _logger, StreamService _streamSe
 			}
 			catch (OperationCanceledException) { 
 				await _logger.Info("Canceled peer connection loop.");
+				throw;
 			}
 			catch (Exception e) {
 				await _logger.Error($"Problem listening for peer connection: {e.Message}");
+				throw;
 			}
 			finally
 			{

@@ -26,6 +26,8 @@ public abstract class ConnectionCommand
 	// HandshakeService.
 	protected async Task<bool> Execute(string connectionName, TcpClient client, CancellationToken cancelToken)
 	{
+		// TODO: this appears to be straightforwardly wrong - any client passed in here is already going 
+		// to be connected.
 		if (client.Connected == true) 
 			return false;
 
