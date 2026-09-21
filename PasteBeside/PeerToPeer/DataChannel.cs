@@ -95,7 +95,8 @@ public class DataChannel: IDisposable
 			throw;
 		}
 
-		return messageService;
+		lock (_disposeLock)
+			return _hasBeenDisposed ? null : messageService;
 	}
 
 	public void Dispose()
@@ -103,8 +104,9 @@ public class DataChannel: IDisposable
 		Action? OnDisconnected;
 		lock (_disposeLock)
 		{
-			OnDisconnected = _messageService is not null ? _messageService.Dispose : null;	
-			_hasBeenDisposed = true;		
+			OnDisconnected = _messageService is not null ? _messageService.Dispose : null;
+			_messageService = null;
+			_hasBeenDisposed = true;
 		}
 		OnDisconnected?.Invoke();
 	}
