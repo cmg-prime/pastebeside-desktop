@@ -71,7 +71,10 @@ public class DataChannel: IDisposable
 		var messageService = _messageServiceFactory.Create(client, cancelToken);
 		try
 		{
-			await messageService.BeginListening();
+#pragma warning disable CS4014
+			// NB: run in background?
+			messageService.BeginListening();
+#pragma warning restore CS4014
 			// NB: if we intentionally start a new connection while holding an existing connection, we
 			// need to dispose of the existing resources as best we can (ideally without blocking the lock).
 			Action? DisposePreviousService = null;
