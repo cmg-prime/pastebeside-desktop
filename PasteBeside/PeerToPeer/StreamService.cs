@@ -41,12 +41,13 @@ public class StreamService
 		//NB: .GetBytes returns byte[4], the length of a 32-bit int; the header contains the payload length.
 		var header = BitConverter.GetBytes(payload.Length);
 
-		await _sendLock.WaitAsync();
+		await _sendLock.WaitAsync(cancelToken);
 		try {
 			await stream.WriteAsync(header, cancelToken);
 			await stream.WriteAsync(payload, cancelToken);
-		} 
-		catch (Exception e) {
+		}
+		catch(OperationCanceledException){ }
+		catch(Exception e) {
 			await _logger.Error($"Error writing to stream: {e.Message}");
 		}
 		finally {
