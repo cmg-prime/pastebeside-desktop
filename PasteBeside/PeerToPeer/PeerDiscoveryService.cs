@@ -21,12 +21,12 @@ public class PeerDiscoveryService
 	private readonly DiscoveredPeerRepository _repository;
 	private readonly EventBus _eventBus;
 	private readonly IdentityService _identityService;
-	private readonly DataChannel _connectionBroker;
+	private readonly DataChannel _dataChannel;
 
 
 	private IPEndPoint? _connectionListenerEndpoint;
 
-	public PeerDiscoveryService(ClientLogger logger, ConnectionRequestListener listener, DataChannel connectionBroker, DiscoveredPeerRepository repository, EventBus eventBus, IdentityService identityService)
+	public PeerDiscoveryService(ClientLogger logger, ConnectionRequestListener listener, DataChannel dataChannel, DiscoveredPeerRepository repository, EventBus eventBus, IdentityService identityService)
 	{
 		_logger = logger;
 		_cancelTokenSource = new CancellationTokenSource();
@@ -38,7 +38,7 @@ public class PeerDiscoveryService
 		_discoveryListener.Client.Bind(new IPEndPoint(IPAddress.Any, _discoveryPort));
 		_broadcaster = new UdpClient { EnableBroadcast = true };
 		_connectionListener = listener;
-		_connectionBroker = connectionBroker;
+		_dataChannel = dataChannel;
 		_repository = repository;
 		_eventBus = eventBus;
 		_identityService = identityService;
@@ -89,9 +89,10 @@ public class PeerDiscoveryService
 				_eventBus.OnPeerDiscovered(peer);
 				// NB: make sure new peers know about this client (*before* we might try to connect to them).
 				await Broadcast(cancelToken);
-				await _connectionBroker.MakeOutgoingConnection(peerEndpoint, cancelToken);
-
 				await _logger.Success("Peer discovered!");
+
+				// NB: doesn't matter to us whether this succeeded or failed. We just kick it off.
+				await _dataChannel.MakeOutgoingConnection(peerEndpoint, cancelToken);
 			}
 			catch (OperationCanceledException) { 
 				await _logger.Info("Canceled peer discovery loop.");

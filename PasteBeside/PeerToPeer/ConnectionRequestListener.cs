@@ -7,16 +7,16 @@ namespace PasteBeside.PeerToPeer;
 public class ConnectionRequestListener
 {
 	private readonly ClientLogger _logger;
-	private readonly DataChannel _connectionBroker;
+	private readonly DataChannel _dataChannel;
 	private readonly TcpListener _listener;
 	private readonly Lock _disposeLock;
 
 	private CancellationTokenSource? _cancelTokenSource;
 
-	public ConnectionRequestListener(ClientLogger logger, DataChannel connectionBroker)
+	public ConnectionRequestListener(ClientLogger logger, DataChannel dataChannel)
 	{
 		_logger = logger;
-		_connectionBroker = connectionBroker;
+		_dataChannel = dataChannel;
 		_listener = new TcpListener(IPAddress.Any, 0);
 		_disposeLock = new();
 	}
@@ -57,13 +57,21 @@ public class ConnectionRequestListener
 				incomingTcpClient = await _listener.AcceptTcpClientAsync(_cancelTokenSource!.Token);
 				// NB: if we were already connected, don't boot the current peer in favor of the new one.
 				// TODO: should the connection broker even know this?
-				if (_connectionBroker.IsConnected) {
+				if (_dataChannel.IsConnected) {
 					incomingTcpClient.Close();
 					return;
 				}
 
-				await _connectionBroker.MakeIncomingConnection(incomingTcpClient, _cancelTokenSource.Token);
-				await _logger.Info("Incoming peer connection accepted!");
+				var madeConnection = await _dataChannel.MakeIncomingConnection(incomingTcpClient, _cancelTokenSource.Token);
+				if (madeConnection)
+				{
+					await _logger.Info("Incoming peer connection accepted!");					
+				}
+				else
+				{
+					TearDownTcpClient(incomingTcpClient);
+					await _logger.Error("Incoming connection could not be established.");
+				}
 			}
 			catch (OperationCanceledException) { 
 				TearDownTcpClient(incomingTcpClient);

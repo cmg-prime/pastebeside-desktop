@@ -28,22 +28,22 @@ public class DataChannel: IDisposable
 
 	public bool IsConnected => _messageService is not null;
 
-	public async Task MakeIncomingConnection(TcpClient incomingClient, CancellationToken rootCancelToken)
+	public async Task<bool> MakeIncomingConnection(TcpClient incomingClient, CancellationToken rootCancelToken)
 	{
 		var client = await _connectionHandler.HandleConnectCommand(
 			Connect: (cancelToken) => _incomingConnectionCommand.Execute(incomingClient, cancelToken),
 			rootCancelToken
 		);
-		_messageService = await InitializeMessageChannel(client, rootCancelToken);
+		return await InitializeMessageChannel(client, rootCancelToken);
 	}
 
-	public async Task MakeOutgoingConnection(IPEndPoint endpoint, CancellationToken rootCancelToken)
+	public async Task<bool> MakeOutgoingConnection(IPEndPoint endpoint, CancellationToken rootCancelToken)
 	{
 		var client = await _connectionHandler.HandleConnectCommand(
 			Connect: (cancelToken) => _outgoingConnectionCommand.Execute(endpoint, cancelToken),
 			rootCancelToken
 		);
-		_messageService = await InitializeMessageChannel(client, rootCancelToken);
+		return await InitializeMessageChannel(client, rootCancelToken);
 	}
 
 	public async Task SendMessage(string message)
@@ -63,10 +63,10 @@ public class DataChannel: IDisposable
 		await Send!.Invoke(message);
 	}
 
-	private async Task<MessageService?> InitializeMessageChannel(TcpClient? client, CancellationToken cancelToken)
+	private async Task<bool> InitializeMessageChannel(TcpClient? client, CancellationToken cancelToken)
 	{
 		if(client is null)
-			return null;
+			return false;
 
 		var messageService = _messageServiceFactory.Create(client, cancelToken);
 		try
@@ -99,7 +99,15 @@ public class DataChannel: IDisposable
 		}
 
 		lock (_disposeLock)
-			return _hasBeenDisposed ? null : messageService;
+		{
+			if (_hasBeenDisposed)
+			{
+				_messageService = null;
+				return false;
+			}
+			_messageService = messageService;
+			return true;
+		}
 	}
 
 	public void Dispose()
