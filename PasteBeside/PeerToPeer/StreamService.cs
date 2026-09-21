@@ -4,7 +4,7 @@ using PasteBeside.ClientFriendlyLog;
 
 namespace PasteBeside.PeerToPeer;
 
-public class StreamService
+public class StreamService: IDisposable
 {
 	private ClientLogger _logger;
 	private readonly SemaphoreSlim _sendLock;
@@ -82,5 +82,11 @@ public class StreamService
 		}
 
 		return (true, buffer);
+	}
+
+	public void Dispose()
+	{
+		_sendLock.Wait();
+		_sendLock.Release();
 	}
 }
