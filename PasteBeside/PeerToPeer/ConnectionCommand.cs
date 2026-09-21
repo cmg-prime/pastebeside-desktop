@@ -26,11 +26,6 @@ public abstract class ConnectionCommand
 	// HandshakeService.
 	protected async Task<bool> Execute(string connectionName, TcpClient client, CancellationToken cancelToken)
 	{
-		// TODO: this appears to be straightforwardly wrong - any client passed in here is already going 
-		// to be connected.
-		if (client.Connected == true) 
-			return false;
-
 		// NB: we need a handshake for better identity resolution than address/port - determining a canonical
 		// address involves a surprising number of edge cases. (E.g. ephemeral ports, multiple network 
 		// interfaces - switching between wifi, ethernet, VPN, or some other niche network interface
