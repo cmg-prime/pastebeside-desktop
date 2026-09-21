@@ -9,6 +9,7 @@ public class ConnectionRequestListener
 	private readonly ClientLogger _logger;
 	private readonly DataChannel _connectionBroker;
 	private readonly TcpListener _listener;
+	private readonly Lock _disposeLock;
 
 	private CancellationTokenSource? _cancelTokenSource;
 
@@ -17,12 +18,24 @@ public class ConnectionRequestListener
 		_logger = logger;
 		_connectionBroker = connectionBroker;
 		_listener = new TcpListener(IPAddress.Any, 0);
+		_disposeLock = new();
 	}
 
 	// NB: guarantee _listener.Start executes before callers can access the listener's port. Since we
 	// instantiate the listener with port 0, the OS dynamically assigns the "real" port on .Start.
 	public async Task<IPEndPoint> InitializeListener(CancellationToken cancelToken)
 	{
+		// NB: if for some reason we're re-initializing the listener, make sure to clean up after the 
+		// potentially extant operation.
+		lock (_disposeLock)
+		{
+			if(_cancelTokenSource is not null)
+			{
+				_cancelTokenSource.Cancel();
+				_cancelTokenSource.Dispose();
+			}	
+		}
+
 		_cancelTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancelToken);
 		await _logger.Info("Listening for incoming connection requests...");
 		_listener.Start();
@@ -73,7 +86,14 @@ public class ConnectionRequestListener
 
 	public void Dispose()
 	{
-		_cancelTokenSource?.Cancel();
-		_listener.Dispose();
+		CancellationTokenSource? cancelTokenSource;
+		lock (_disposeLock)
+		{
+			cancelTokenSource = _cancelTokenSource;
+			_cancelTokenSource = null;
+			_listener.Dispose();			
+		}
+		cancelTokenSource?.Cancel();
+		cancelTokenSource?.Dispose();
 	}
 }
