@@ -4,7 +4,7 @@ using PasteBeside.ClientFriendlyLog;
 
 namespace PasteBeside.PeerToPeer;
 
-public class ConnectionRequestListener
+public class ConnectionRequestListener: IDisposable
 {
 	private readonly ClientLogger _logger;
 	private readonly DataChannel _dataChannel;
@@ -27,6 +27,7 @@ public class ConnectionRequestListener
 	{
 		// NB: if for some reason we're re-initializing the listener, make sure to clean up after the 
 		// potentially extant operation.
+		CancellationToken loopCancelToken;
 		lock (_disposeLock)
 		{
 			if(_cancelTokenSource is not null)
@@ -34,35 +35,30 @@ public class ConnectionRequestListener
 				_cancelTokenSource.Cancel();
 				_cancelTokenSource.Dispose();
 			}	
+			_cancelTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancelToken);
+			loopCancelToken = _cancelTokenSource.Token;
+			_listener.Stop();
+			_listener.Start();
 		}
 
-		_cancelTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancelToken);
 		await _logger.Info("Listening for incoming connection requests...");
-		_listener.Start();
-#pragma warning disable CS4014
 		// TODO: run in background?
-		ExecuteListenLoop();
+#pragma warning disable CS4014
+		ExecuteListenLoop(loopCancelToken);
 #pragma warning restore CS4014
 
 		return (IPEndPoint)_listener.LocalEndpoint;
 	}
 
-	public async Task ExecuteListenLoop()
+	public async Task ExecuteListenLoop(CancellationToken cancelToken)
 	{
-		while (true)
+		while (true && !cancelToken.IsCancellationRequested)
 		{
 			TcpClient? incomingTcpClient = null;
 			try
 			{
-				incomingTcpClient = await _listener.AcceptTcpClientAsync(_cancelTokenSource!.Token);
-				// NB: if we were already connected, don't boot the current peer in favor of the new one.
-				// TODO: should the connection broker even know this?
-				if (_dataChannel.IsConnected) {
-					incomingTcpClient.Close();
-					return;
-				}
-
-				var madeConnection = await _dataChannel.MakeIncomingConnection(incomingTcpClient, _cancelTokenSource.Token);
+				incomingTcpClient = await _listener.AcceptTcpClientAsync(cancelToken);
+				var madeConnection = await _dataChannel.MakeIncomingConnection(incomingTcpClient, cancelToken);
 				if (madeConnection)
 				{
 					await _logger.Info("Incoming peer connection accepted!");					
@@ -94,14 +90,15 @@ public class ConnectionRequestListener
 
 	public void Dispose()
 	{
-		CancellationTokenSource? cancelTokenSource;
 		lock (_disposeLock)
 		{
-			cancelTokenSource = _cancelTokenSource;
+			// NB: I'd prefer to cancel outside the lock in case of long-running cancel callbacks - but
+			// that's an unlikely design-time edge case, and it's more important to cancel the listen operation
+			// before disposing the listener out from under it.
+			_cancelTokenSource?.Cancel();
+			_cancelTokenSource?.Dispose();
 			_cancelTokenSource = null;
-			_listener.Dispose();			
+			_listener.Dispose();
 		}
-		cancelTokenSource?.Cancel();
-		cancelTokenSource?.Dispose();
 	}
 }

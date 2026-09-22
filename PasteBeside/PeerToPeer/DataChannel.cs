@@ -30,15 +30,29 @@ public class DataChannel: IDisposable
 
 	public async Task<bool> MakeIncomingConnection(TcpClient incomingClient, CancellationToken rootCancelToken)
 	{
+		// NB: if we were already connected, don't boot the current peer in favor of the new one.
+		lock(_disposeLock)
+			if(_hasBeenDisposed || IsConnected)
+				return false;
+
 		var client = await _connectionHandler.HandleConnectCommand(
 			Connect: (cancelToken) => _incomingConnectionCommand.Execute(incomingClient, cancelToken),
 			rootCancelToken
 		);
+
+		lock(_disposeLock)
+			if(IsConnected)
+				return false;
+		
 		return await InitializeMessageChannel(client, rootCancelToken);
 	}
 
 	public async Task<bool> MakeOutgoingConnection(IPEndPoint endpoint, CancellationToken rootCancelToken)
 	{
+		lock(_disposeLock)
+			if(_hasBeenDisposed)
+				return false;
+
 		var client = await _connectionHandler.HandleConnectCommand(
 			Connect: (cancelToken) => _outgoingConnectionCommand.Execute(endpoint, cancelToken),
 			rootCancelToken
@@ -65,8 +79,9 @@ public class DataChannel: IDisposable
 
 	private async Task<bool> InitializeMessageChannel(TcpClient? client, CancellationToken cancelToken)
 	{
-		if(client is null)
-			return false;
+		lock(_disposeLock)
+			if(client is null || _hasBeenDisposed)
+				return false;
 
 		var messageService = _messageServiceFactory.Create(client, cancelToken);
 		try
