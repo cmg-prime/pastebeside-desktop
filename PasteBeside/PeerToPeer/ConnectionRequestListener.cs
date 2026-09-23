@@ -12,13 +12,18 @@ public class ConnectionRequestListener: IDisposable
 	private readonly Lock _disposeLock;
 
 	private CancellationTokenSource? _cancelTokenSource;
+	private readonly SemaphoreSlim _stateLock;
+	private Task? _listenTask;
+	private bool _isDisposed;
 
 	public ConnectionRequestListener(ClientLogger logger, DataChannel dataChannel)
 	{
 		_logger = logger;
 		_dataChannel = dataChannel;
 		_listener = new TcpListener(IPAddress.Any, 0);
+		_stateLock = new(1,1);
 		_disposeLock = new();
+		_isDisposed = false;
 	}
 
 	// NB: guarantee _listener.Start executes before callers can access the listener's port. Since we
@@ -28,26 +33,45 @@ public class ConnectionRequestListener: IDisposable
 		// NB: if for some reason we're re-initializing the listener, make sure to clean up after the 
 		// potentially extant operation.
 		CancellationToken loopCancelToken;
-		lock (_disposeLock)
+		// NB: ConfigureAwait everywhere to minimize the risk of deadlock from Dispose waiting on 
+		// a thread that's blocked for it.
+		await _stateLock.WaitAsync(cancelToken).ConfigureAwait(false);
+		try
 		{
+			ObjectDisposedException.ThrowIf(_isDisposed, this);
+			// NB: if for some reason we're re-initializing the listener, make sure to clean up after the 
+			// potentially extant operation.
 			if(_cancelTokenSource is not null)
 			{
 				_cancelTokenSource.Cancel();
 				_cancelTokenSource.Dispose();
-			}	
+				_cancelTokenSource = null;
+			}
+			if (_listenTask is not null)
+			{
+				try
+				{
+					await _listenTask.ConfigureAwait(false);
+				}
+				catch (OperationCanceledException) { /* NB: this is the expected outcome of re-initializing. */ }
+				_listenTask = null;
+			}
+
 			_cancelTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancelToken);
 			loopCancelToken = _cancelTokenSource.Token;
 			_listener.Stop();
 			_listener.Start();
+
+			// TODO: run in background?
+			_listenTask = ExecuteListenLoop(loopCancelToken);
+			await _logger.Info("Listening for incoming connection requests...").ConfigureAwait(false);
+
+			return (IPEndPoint)_listener.LocalEndpoint;
 		}
-
-		await _logger.Info("Listening for incoming connection requests...");
-		// TODO: run in background?
-#pragma warning disable CS4014
-		ExecuteListenLoop(loopCancelToken);
-#pragma warning restore CS4014
-
-		return (IPEndPoint)_listener.LocalEndpoint;
+		finally
+		{
+			_stateLock.Release();
+		}
 	}
 
 	public async Task ExecuteListenLoop(CancellationToken cancelToken)
@@ -57,16 +81,16 @@ public class ConnectionRequestListener: IDisposable
 			TcpClient? incomingTcpClient = null;
 			try
 			{
-				incomingTcpClient = await _listener.AcceptTcpClientAsync(cancelToken);
-				var madeConnection = await _dataChannel.MakeIncomingConnection(incomingTcpClient, cancelToken);
+				incomingTcpClient = await _listener.AcceptTcpClientAsync(cancelToken).ConfigureAwait(false);
+				var madeConnection = await _dataChannel.MakeIncomingConnection(incomingTcpClient, cancelToken).ConfigureAwait(false);
 				if (madeConnection)
 				{
-					await _logger.Info("Incoming peer connection accepted!");					
+					await _logger.Info("Incoming peer connection accepted!").ConfigureAwait(false);					
 				}
 				else
 				{
 					TearDownTcpClient(incomingTcpClient);
-					await _logger.Error("Incoming connection could not be established.");
+					await _logger.Error("Incoming connection could not be established.").ConfigureAwait(false);
 				}
 			}
 			catch (OperationCanceledException) { 
@@ -75,7 +99,7 @@ public class ConnectionRequestListener: IDisposable
 			}
 			catch (Exception e) {
 				TearDownTcpClient(incomingTcpClient);
-				await _logger.Error($"Problem listening for peer connection: {e.Message}");
+				await _logger.Error($"Problem listening for peer connection: {e.Message}").ConfigureAwait(false);
 				// NB: we don't stop listening on network error; not our problem.
 				continue;
 			}
@@ -88,17 +112,43 @@ public class ConnectionRequestListener: IDisposable
 		}
 	}
 
-	public void Dispose()
+	public void Dispose() => DisposeAsync().AsTask().ConfigureAwait(false).GetAwaiter().GetResult();
+
+	public async ValueTask DisposeAsync()
 	{
-		lock (_disposeLock)
+		Task? listenTaskToAwait;
+		await _stateLock.WaitAsync().ConfigureAwait(false);
+		try
 		{
-			// NB: I'd prefer to cancel outside the lock in case of long-running cancel callbacks - but
-			// that's an unlikely design-time edge case, and it's more important to cancel the listen operation
-			// before disposing the listener out from under it.
+			if (_isDisposed)
+				return;
+
+			_isDisposed = true;
+
 			_cancelTokenSource?.Cancel();
 			_cancelTokenSource?.Dispose();
 			_cancelTokenSource = null;
 			_listener.Dispose();
+
+			listenTaskToAwait = _listenTask;
+			_listenTask = null;
 		}
+		finally
+		{
+			_stateLock.Release();
+		}
+
+		// NB: safe to wait outside the lock. A concurrent call to InitializeListener will read _isDisposed
+		// as soon as it acquires the lock, and throw the exception.
+		if (listenTaskToAwait is not null)
+		{
+			try
+			{
+				await listenTaskToAwait.ConfigureAwait(false);
+			}
+			catch { /* NB: exceptions handled inside the listen loop. No-op. */ }
+		}
+
+		_stateLock.Dispose();
 	}
 }

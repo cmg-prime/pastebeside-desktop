@@ -11,11 +11,12 @@ public class ConnectionHandler: IDisposable
 	private readonly LastConnectedPeerRepository _lastConnectedPeerRepository;
 	private readonly DiscoveredPeerRepository _discoveryRepository;
 	private readonly ReconnectService _reconnectService;
-	private readonly SemaphoreSlim _connectionLock;
 	private readonly Lock _disposalLock;
 
 	private CancellationTokenSource? _connectCancelTokenSource;
 	private CancellationTokenSource? _reconnectCancelTokenSource;
+
+	private readonly SemaphoreSlim _connectionLock;
 	private bool _hasBeenDisposed;
 
 	public ConnectionHandler(ClientLogger logger, EventBus eventBus, LastConnectedPeerRepository lastConnectedPeerRepository, DiscoveredPeerRepository discoveryRepository, ReconnectService reconnectService)
@@ -43,8 +44,7 @@ public class ConnectionHandler: IDisposable
 			CancellationTokenSource? reconnectCancelTokenSource;
 			lock (_disposalLock)
 			{
-				if (_hasBeenDisposed)
-					return null;
+				ObjectDisposedException.ThrowIf(_hasBeenDisposed, this);
 
 				cancelTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancelToken);
 				stableCancelToken = cancelTokenSource.Token;
