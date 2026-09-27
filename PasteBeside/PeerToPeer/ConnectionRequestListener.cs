@@ -4,7 +4,7 @@ using PasteBeside.ClientFriendlyLog;
 
 namespace PasteBeside.PeerToPeer;
 
-public class ConnectionRequestListener
+public class ConnectionRequestListener: IDisposable
 {
 	private readonly ClientLogger _logger;
 	private readonly DataChannel _connectionBroker;

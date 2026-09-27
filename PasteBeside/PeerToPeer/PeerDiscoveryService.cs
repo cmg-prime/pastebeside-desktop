@@ -6,7 +6,7 @@ using PasteBeside.Eventing;
 
 namespace PasteBeside.PeerToPeer;
 
-public class PeerDiscoveryService
+public class PeerDiscoveryService: IDisposable
 {
 	// NB: discovery port is any arbitrary free port.
 	private const int _discoveryPort = 41234;
