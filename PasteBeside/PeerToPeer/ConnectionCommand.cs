@@ -38,12 +38,12 @@ public abstract class ConnectionCommand
 		var remotePeerId = await _handshakeService.PerformHandshake(client, cancelToken);
 		if (remotePeerId is null)
 		{
-			await _logger.Error($"{connectionName} refused.");
+			await _logger.ErrorAsync($"{connectionName} refused.");
 			return false;
 		}
 
 		_lastConnectedPeerRepo.Set(_discoveryRepo.SearchById(remotePeerId!)!);
-		await _logger.Info($"{connectionName} accepted!");
+		await _logger.InfoAsync($"{connectionName} accepted!");
 		_eventBus.OnPeerConnected(_lastConnectedPeerRepo.Get()!);
 		return true;
 	}

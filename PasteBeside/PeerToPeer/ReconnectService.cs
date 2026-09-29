@@ -79,11 +79,11 @@ public class ReconnectService: IDisposable
 		{
 			while (!cancelToken.IsCancellationRequested && delay.TotalSeconds < timeoutLimitInSeconds)
 			{
-				await _logger.Info("Attempting to reconnect...");
+				await _logger.InfoAsync("Attempting to reconnect...");
 				var client = await _outgoingConnectionCommand.Execute(peer.Endpoint, cancelToken);
 				if (client?.Connected ?? false) {
 					_discoveryRepo.AddPeer(peer);
-					await _logger.Success("Reconnected to peer!");
+					await _logger.SuccessAsync("Reconnected to peer!");
 					return client;
 				}
 
@@ -96,7 +96,7 @@ public class ReconnectService: IDisposable
 				if (ReferenceEquals(_lastConnectedPeerRepo.Get(), peer))
 					_lastConnectedPeerRepo.Reset();
 
-				await _logger.Error("Unable to reconnect.");	
+				await _logger.ErrorAsync("Unable to reconnect.");	
 			}	
 		}
 		catch (OperationCanceledException){ /* NB: all we'd do here is return null. No-op. */ }

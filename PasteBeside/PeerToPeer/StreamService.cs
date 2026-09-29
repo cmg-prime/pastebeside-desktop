@@ -47,7 +47,7 @@ public class StreamService
 			await stream.WriteAsync(payload, cancelToken);
 		} 
 		catch (Exception e) {
-			await _logger.Error($"Error writing to stream: {e.Message}");
+			await _logger.ErrorAsync($"Error writing to stream: {e.Message}");
 		}
 		finally {
 			_sendLock.Release();

@@ -24,7 +24,7 @@ public class ConnectionRequestListener: IDisposable
 	public async Task<IPEndPoint> InitializeListener(CancellationToken cancelToken)
 	{
 		_cancelTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancelToken);
-		await _logger.Info("Listening for incoming connection requests...");
+		await _logger.InfoAsync("Listening for incoming connection requests...");
 		_listener.Start();
 #pragma warning disable CS4014
 		// TODO: run in background?
@@ -50,7 +50,7 @@ public class ConnectionRequestListener: IDisposable
 				}
 
 				await _connectionBroker.MakeIncomingConnection(incomingTcpClient, _cancelTokenSource.Token);
-				await _logger.Info("Incoming peer connection accepted!");
+				await _logger.InfoAsync("Incoming peer connection accepted!");
 			}
 			catch (OperationCanceledException) { 
 				TearDownTcpClient(incomingTcpClient);
@@ -58,7 +58,7 @@ public class ConnectionRequestListener: IDisposable
 			}
 			catch (Exception e) {
 				TearDownTcpClient(incomingTcpClient);
-				await _logger.Error($"Problem listening for peer connection: {e.Message}");
+				await _logger.ErrorAsync($"Problem listening for peer connection: {e.Message}");
 				// NB: we don't stop listening on network error; not our problem.
 				continue;
 			}

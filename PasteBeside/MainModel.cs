@@ -36,7 +36,7 @@ internal partial record MainModel
 		_eventBus.PeerConnected += async (sender, args) =>
 		{
 			await RemotePeer!.UpdateAsync(current => args.Peer);
-			await _logger.Success($"Connection established with peer {args.Peer.Id}!");
+			await _logger.SuccessAsync($"Connection established with peer {args.Peer.Id}!");
 		};
 		_eventBus.PeerDisconnected += async (sender, args) =>
 		{
@@ -47,11 +47,11 @@ internal partial record MainModel
 				return existing;
 			});
 			await RemotePeer!.UpdateAsync(peer => null);
-			await _logger.Error($"Peer {args.PeerId} disconnected.");
+			await _logger.ErrorAsync($"Peer {args.PeerId} disconnected.");
 		};
 		_eventBus.MessageReceived += async (sender, args) =>
 		{
-			await _logger.Success($"Message received: {args.Message}");	
+			await _logger.SuccessAsync($"Message received: {args.Message}");	
 		};
 
 		// TODO: can this run in a background service?
@@ -79,7 +79,7 @@ internal partial record MainModel
 	{
 		if (viewModel.IsCurrentlyConnectedPeer)
 		{
-			await _logger.Info($"Already connected to peer '{viewModel.AvailablePeer.Id}'.");
+			await _logger.InfoAsync($"Already connected to peer '{viewModel.AvailablePeer.Id}'.");
 			return;
 		}
 		

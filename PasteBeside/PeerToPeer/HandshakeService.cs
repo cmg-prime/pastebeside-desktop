@@ -32,7 +32,7 @@ public class HandshakeService
 		if(remotePeerId == _identityService.Identifier)
 			return null;
 
-		await _logger.Success($"Handshake succeeded with peer {remotePeerId}!");
+		await _logger.SuccessAsync($"Handshake succeeded with peer {remotePeerId}!");
 		return remotePeerId;
 	}
 }

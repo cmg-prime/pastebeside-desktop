@@ -57,7 +57,7 @@ public class DataChannel: IDisposable
 
 		if(Send is null)
 		{
-			await _logger.Info("Message broker inoperative. Message not sent.");
+			await _logger.InfoAsync("Message broker inoperative. Message not sent.");
 			return;	
 		}
 		await Send!.Invoke(message);

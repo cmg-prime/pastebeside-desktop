@@ -10,16 +10,22 @@ public record ClientLogger
 			.Value(this, () => [new ClientLogMessage("PasteBeside started!", ClientLogType.Success, DateTime.Now)]);
 	}
 
-	public async ValueTask Info(string message)
-		=> await Update(message);
+#pragma warning disable CS4014
+	public void Info(string message) => InfoAsync(message).ConfigureAwait(false);
+	public void Error(string message) => ErrorAsync(message).ConfigureAwait(false);
+	public void Success(string message) => SuccessAsync(message).ConfigureAwait(false);
+#pragma warning restore CS4014
 
-	public async ValueTask Error(string message)
-		=> await Update(message, ClientLogType.Error);
+	public async Task InfoAsync(string message)
+		=> await Update(message).ConfigureAwait(false);
 
-	public async ValueTask Success(string message) 
-		=> await Update(message, ClientLogType.Success);
+	public async Task ErrorAsync(string message)
+		=> await Update(message, ClientLogType.Error).ConfigureAwait(false);
+
+	public async Task SuccessAsync(string message) 
+		=> await Update(message, ClientLogType.Success).ConfigureAwait(false);
 
 	private async ValueTask Update(string message, ClientLogType type = ClientLogType.Info)
-		=> await Messages.UpdateAsync(current => [..current!, new ClientLogMessage(message, type, DateTime.Now)]);
+		=> await Messages.UpdateAsync(current => [..current!, new ClientLogMessage(message, type, DateTime.Now)]).ConfigureAwait(false);
 
 }

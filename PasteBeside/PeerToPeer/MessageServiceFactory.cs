@@ -29,10 +29,10 @@ public class MessageServiceFactory(ClientLogger _logger, StreamService _streamSe
 		public async Task BeginListening()
 		{
 			var stream = _client!.GetStream();
-			await _logger.Success($"Connected to remote peer!");
+			await _logger.SuccessAsync($"Connected to remote peer!");
 			try
 			{
-				await _logger.Info($"Listening for messages...");
+				await _logger.InfoAsync($"Listening for messages...");
 				while (!_cancelTokenSource.IsCancellationRequested)
 				{
 					var readAttempt =  await _streamService.TryRead(stream, _cancelTokenSource.Token);
@@ -43,11 +43,11 @@ public class MessageServiceFactory(ClientLogger _logger, StreamService _streamSe
 				}
 			}
 			catch (OperationCanceledException) { 
-				await _logger.Info("Canceled peer connection loop.");
+				await _logger.InfoAsync("Canceled peer connection loop.");
 				throw;
 			}
 			catch (Exception e) {
-				await _logger.Error($"Problem listening for peer connection: {e.Message}");
+				await _logger.ErrorAsync($"Problem listening for peer connection: {e.Message}");
 				throw;
 			}
 			finally

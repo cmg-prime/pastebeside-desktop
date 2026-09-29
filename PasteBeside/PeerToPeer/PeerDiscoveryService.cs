@@ -61,7 +61,7 @@ public class PeerDiscoveryService: IDisposable
 
 	private async Task ListenForPeer(CancellationToken cancelToken)
 	{
-		await _logger.Info("Starting peer discovery loop...");
+		await _logger.InfoAsync("Starting peer discovery loop...");
 		while (!cancelToken.IsCancellationRequested)
 		{
 			UdpReceiveResult datagram;
@@ -91,14 +91,14 @@ public class PeerDiscoveryService: IDisposable
 				await Broadcast(cancelToken);
 				await _connectionBroker.MakeOutgoingConnection(peerEndpoint, cancelToken);
 
-				await _logger.Success("Peer discovered!");
+				await _logger.SuccessAsync("Peer discovered!");
 			}
 			catch (OperationCanceledException) { 
-				await _logger.Info("Canceled peer discovery loop.");
+				await _logger.InfoAsync("Canceled peer discovery loop.");
 				break; 
 			}
 			catch (Exception e) {
-				await _logger.Error($"Problem during peer discovery: {e.Message}");
+				await _logger.ErrorAsync($"Problem during peer discovery: {e.Message}");
 				continue;
 			}
 		}
@@ -114,10 +114,10 @@ public class PeerDiscoveryService: IDisposable
 		try {
 			var discoveryPayload = Encoding.UTF8.GetBytes($"{_appId}:{_identityService.Identifier}:{_connectionListenerEndpoint!.Port}");
 			await _broadcaster.SendAsync(discoveryPayload, discoveryPayload.Length, broadcastEndpoint);
-			await _logger.Info("Discovery info broadcast.");
+			await _logger.InfoAsync("Discovery info broadcast.");
 		}
 		catch (Exception e) { 
-			await _logger.Error($"Problem broadcasting discovery info: {e.Message}");
+			await _logger.ErrorAsync($"Problem broadcasting discovery info: {e.Message}");
 		}
 	}
 

@@ -128,7 +128,7 @@ public class ConnectionHandler: IDisposable
 			}
 		}
 
-		await _logger.Error("Disconnected from peer.");
+		await _logger.ErrorAsync("Disconnected from peer.");
 		return null;
 	}
 
