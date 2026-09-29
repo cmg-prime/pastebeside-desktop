@@ -73,15 +73,15 @@ public class Monolith: IDisposable, IAsyncDisposable
 			// than the constructor, so the newly constructor UdpClient doesn't ever leak.
 			_discoveryListener.Client.Bind(new IPEndPoint(IPAddress.Any, _discoveryPort));			
 			cancelToken = _cancelTokenSource!.Token;
+			// NB: prevent race with disposal by ensuring the listen tasks are assigned within the lock.
+			_tcpListenerEndpoint = InitializeConnectionListener(cancelToken);
+			_discoveryListenLoop = ListenForPeer(cancelToken);
 		}
-
-		_tcpListenerEndpoint = InitializeConnectionListener(cancelToken);
 		var peer = new Peer(_identityService.Identifier, _tcpListenerEndpoint);
 		_discoveredPeerRepo.AddPeer(peer);
 		_eventBus.OnLocalPeerConfigured(new Peer(_identityService.Identifier, _tcpListenerEndpoint));
 		_eventBus.OnPeerDiscovered(peer);
 
-		_discoveryListenLoop = ListenForPeer(cancelToken);
 		await Broadcast(cancelToken);
 	}
 
