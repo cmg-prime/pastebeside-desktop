@@ -180,7 +180,12 @@ public class Monolith: IDisposable, IAsyncDisposable
 				incomingTcpClient?.Close();
 				break; 
 			}
-			catch (ObjectDisposedException){ /* NB: may occur during synchronous disposal. No-op. */ }
+			// NB: ObjectDisposedException could be thrown from within dependencies - make sure we're
+			// not greedily catching unrelated exceptions.
+			catch (ObjectDisposedException) when (cancelToken.IsCancellationRequested){
+				incomingTcpClient?.Close();
+				break;
+			}
 			catch (Exception e) {
 				incomingTcpClient?.Close();
 				_logger.Error($"Problem listening for peer connection: {e.Message}");
