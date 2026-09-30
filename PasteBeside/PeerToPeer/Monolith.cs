@@ -134,6 +134,7 @@ public class Monolith: IDisposable, IAsyncDisposable
 				_logger.Info("Canceled peer discovery loop.");
 				break; 
 			}
+			catch (ObjectDisposedException){ /* NB: may occur during synchronous disposal. No-op. */ }
 			catch (Exception e) {
 				_logger.Error($"Problem during peer discovery: {e.Message}");
 				continue;
@@ -179,6 +180,7 @@ public class Monolith: IDisposable, IAsyncDisposable
 				incomingTcpClient?.Close();
 				break; 
 			}
+			catch (ObjectDisposedException){ /* NB: may occur during synchronous disposal. No-op. */ }
 			catch (Exception e) {
 				incomingTcpClient?.Close();
 				_logger.Error($"Problem listening for peer connection: {e.Message}");
@@ -190,62 +192,59 @@ public class Monolith: IDisposable, IAsyncDisposable
 
 	public void Dispose()
 	{
-		// NB: CTS could theoretically have cancellation callbacks registered. Don't want to hold the lock
-		// to execute them if we don't have to. Ditto loop tasks.
-		CancellationTokenSource? CancelTokenSource;
-		lock (_lifecycleLock)
-		{
-			// NB: guard against concurrent disposal.
-			if(_isDisposed)
-				return;
+		var (shutdownStarted, cancelTokenSource, _) = TryBeginShutdown();
+		if(!shutdownStarted)
+			return;
 
-			_isDisposed = true;
-			CancelTokenSource = _cancelTokenSource;
-			_cancelTokenSource = null;
-		}
-		CancelTokenSource?.Cancel();
-		CancelTokenSource?.Dispose();
+		cancelTokenSource!.Cancel();
 		// NB: only close sockets after we've tried to resolve (cancel) all tasks relying on them.
-		_connectionListener.Dispose();
-		_discoveryListener.Dispose();
-		_broadcaster.Dispose();
-		_dataChannel.Dispose();
+		DisposeResources();
+		cancelTokenSource!.Dispose();
 	}
 
 	public async ValueTask DisposeAsync()
 	{
+		var (shutdownStarted, cancelTokenSource, loopTasks) = TryBeginShutdown();
+		if(!shutdownStarted)
+			return;
+		
+		// NB: ensure that if any loop task throws an exception, we handle it.
+		try
+		{
+			cancelTokenSource!.Cancel();
+			await Task.WhenAll(loopTasks).ConfigureAwait(false);
+		}
+		catch { }
+		finally {
+			DisposeResources();
+			cancelTokenSource!.Dispose();
+		}
+	}
+
+	// TODO: good use case for an Either<T>. Are there others?
+	private (bool shutdownStarted, CancellationTokenSource? cancelTokenSource, Task[] loopTasks) TryBeginShutdown()
+	{
 		// NB: CTS could theoretically have cancellation callbacks registered. Don't want to hold the lock
 		// to execute them if we don't have to. Ditto loop tasks.
-		CancellationTokenSource? CancelTokenSource;
-		List<Task> loopTasks = [];
 		lock (_lifecycleLock)
 		{
-			// NB: guard against concurrent disposal.
-			if(_isDisposed)
-				return;
+			if (_isDisposed) 
+				return (false, null, []);
 
 			_isDisposed = true;
-			CancelTokenSource = _cancelTokenSource;
-			if(_tcpListenLoop is not null)
-			{
-				loopTasks.Add(_tcpListenLoop);
-				_tcpListenLoop = null;
-			}
-			if(_discoveryListenLoop is not null)
-			{
-				loopTasks.Add(_discoveryListenLoop);
-				_discoveryListenLoop = null;
-			}
+			var cancelTokenSource = _cancelTokenSource;
+			_cancelTokenSource = null;
+			Task[] loopTasks = [_tcpListenLoop!, _discoveryListenLoop!];
+			_tcpListenLoop = _discoveryListenLoop = null;
+			return (true, cancelTokenSource, loopTasks);
 		}
-		CancelTokenSource?.Cancel();
-		await Task.WhenAll(loopTasks);
-		// NB: the loop tasks may still rely on reading the state of the CTS, so defer disposal until
-		// they've resolved.
-		_cancelTokenSource = null;
-		CancelTokenSource?.Dispose();
-		// NB: only close sockets after we're sure all tasks relying on them have resolved.
+	}
+
+	private void DisposeResources()
+	{
 		_connectionListener.Dispose();
 		_discoveryListener.Dispose();
 		_broadcaster.Dispose();
+		_dataChannel.Dispose();
 	}
 }
