@@ -69,8 +69,8 @@ public class Monolith: IDisposable, IAsyncDisposable
 			// and this eliminates dev concerns about fast restarts or multiple local instances attempting overlapping claims
 			// before the socket is released.
 			_discoveryListener.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
-			// NB: because .Bind can throw (e.g. on perimissions), configure the _discoveryListener here rather
-			// than the constructor, so the newly constructor UdpClient doesn't ever leak.
+			// NB: because .Bind can throw (e.g. on permissions), configure the _discoveryListener here 
+			// rather than in the constructor, so the newly constructed UdpClient doesn't ever leak.
 			_discoveryListener.Client.Bind(new IPEndPoint(IPAddress.Any, _discoveryPort));			
 			cancelToken = _cancelTokenSource!.Token;
 			// NB: prevent race with disposal by ensuring the listen tasks are assigned within the lock.
@@ -134,7 +134,7 @@ public class Monolith: IDisposable, IAsyncDisposable
 				_logger.Info("Canceled peer discovery loop.");
 				break; 
 			}
-			catch (ObjectDisposedException){ /* NB: may occur during synchronous disposal. No-op. */ }
+			catch (ObjectDisposedException){  }
 			catch (Exception e) {
 				_logger.Error($"Problem during peer discovery: {e.Message}");
 				continue;
@@ -222,7 +222,7 @@ public class Monolith: IDisposable, IAsyncDisposable
 	}
 
 	// TODO: good use case for an Either<T>. Are there others?
-	private (bool shutdownStarted, CancellationTokenSource? cancelTokenSource, Task[] loopTasks) TryBeginShutdown()
+	private (bool shutdownStarted, CancellationTokenSource? cancelTokenSource, List<Task> loopTasks) TryBeginShutdown()
 	{
 		// NB: CTS could theoretically have cancellation callbacks registered. Don't want to hold the lock
 		// to execute them if we don't have to. Ditto loop tasks.
@@ -234,7 +234,12 @@ public class Monolith: IDisposable, IAsyncDisposable
 			_isDisposed = true;
 			var cancelTokenSource = _cancelTokenSource;
 			_cancelTokenSource = null;
-			Task[] loopTasks = [_tcpListenLoop!, _discoveryListenLoop!];
+			// NB: need this null guard because BeginDiscovery could throw (or never have been called).
+			var loopTasks = new []{ _tcpListenLoop, _discoveryListenLoop }
+				.Where(task => task is not null)
+				.Cast<Task>()
+				.ToList();
+
 			_tcpListenLoop = _discoveryListenLoop = null;
 			return (true, cancelTokenSource, loopTasks);
 		}
