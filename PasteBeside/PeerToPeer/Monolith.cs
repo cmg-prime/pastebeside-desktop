@@ -11,6 +11,7 @@ public class Monolith: IDisposable, IAsyncDisposable
 	private readonly ClientLogger _logger;
 	private readonly EventBus _eventBus;
 	private readonly IdentityService _identityService;
+	private readonly DataChannel _dataChannel;
 	private readonly Lock _lifecycleLock;
 	private CancellationTokenSource? _cancelTokenSource;
 	private bool _isDisposed;
@@ -27,12 +28,9 @@ public class Monolith: IDisposable, IAsyncDisposable
 	private IPEndPoint? _tcpListenerEndpoint;
 	private Task? _discoveryListenLoop;
 
-	//LISTENER
+	//TCP CONNECTION
 	private readonly TcpListener _connectionListener;
 	private Task? _tcpListenLoop;
-
-	//DATACHANNEL
-	private readonly DataChannel _dataChannel;
 
 	public Monolith(ClientLogger logger, EventBus eventBus, IdentityService identityService, DiscoveredPeerRepository discoveredPeerRepo, DataChannel dataChannel)
 	{
@@ -49,36 +47,38 @@ public class Monolith: IDisposable, IAsyncDisposable
 		_broadcaster = new UdpClient { EnableBroadcast = true };
 		_discoveredPeerRepo = discoveredPeerRepo;
 
-		//TCP LISTENER
+		//TCP CONNECTION
 		_connectionListener = new TcpListener(IPAddress.Any, 0);
 	}
 
 	public async Task BeginDiscovery()
 	{
 		// NB: this isn't strictly necessary - all methods have access to the _cancelTokenSource field -
-		// but direct access to the CTS can introduce race conditions with disposal, and passing down
-		// a single, stable reference to a CancellationToken obviates those concerns regardless of future
-		// code changes.
+		// but incautious access to the CTS can introduce race conditions with disposal, and passing down
+		// a single, stable reference to the token obviates those concerns regardless of future changes.
 		CancellationToken cancelToken;
 		lock (_lifecycleLock)
 		{
 			if(_isDisposed || _cancelTokenSource!.IsCancellationRequested)
 				throw new Exception("Discovery operations have already been canceled or disposed.");
 
-			// NB: allowing multiple listeners on the same socket out of an abundance of caution - no compelling reason not to,
-			// and this eliminates dev concerns about fast restarts or multiple local instances attempting overlapping claims
-			// before the socket is released.
+			// NB: allowing multiple listeners on the same socket out of an abundance of caution - this 
+			// eliminates dev concerns about fast restarts or multiple local instances attempting 
+			// overlapping claims before the socket is released.
 			_discoveryListener.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
 			// NB: because .Bind can throw (e.g. on permissions), configure the _discoveryListener here 
-			// rather than in the constructor, so the newly constructed UdpClient doesn't ever leak.
+			// rather than in the constructor, so the newly constructed UdpClient can't ever leak.
 			_discoveryListener.Client.Bind(new IPEndPoint(IPAddress.Any, _discoveryPort));			
 			cancelToken = _cancelTokenSource!.Token;
+			_logger.Info("Listening for incoming connection requests...");
+			_connectionListener.Start();
+			_tcpListenerEndpoint = (IPEndPoint)_connectionListener.LocalEndpoint;
 			// NB: prevent race with disposal by ensuring the listen tasks are assigned within the lock.
-			_tcpListenerEndpoint = InitializeConnectionListener(cancelToken);
-			// NB: ListenForPeer represents a subtle async edge case: the code runs synchronously until 
-			// the first *incomplete* task. If the task result is already queued - i.e. a datagram already
-			// came in - there's no asynchronicity, and we keep hogging the lock until there is.
-			// Task.Run sidesteps this issue by sending the task to the thread pool regardless.
+			// Also: ListenForPeer represents a subtle async edge case. The code runs synchronously until 
+			// the first *incomplete* task; if the task result is already queued - i.e. a datagram already
+			// came in - we just keep hogging the lock. Task.Run sidesteps this issue by sending the task
+			// to the thread pool regardless.
+			_tcpListenLoop = Task.Run(() => ListenForConnectionRequest(cancelToken));
 			_discoveryListenLoop = Task.Run(() => ListenForPeer(cancelToken));
 		}
 		var peer = new Peer(_identityService.Identifier, _tcpListenerEndpoint);
@@ -87,17 +87,6 @@ public class Monolith: IDisposable, IAsyncDisposable
 		_eventBus.OnPeerDiscovered(peer);
 
 		await Broadcast(cancelToken);
-	}
-
-	private IPEndPoint InitializeConnectionListener(CancellationToken cancelToken)
-	{
-		_logger.Info("Listening for incoming connection requests...");
-		_connectionListener.Start();
-		_tcpListenLoop = Task.Run(() => ListenForConnectionRequest(cancelToken));
-
-		// NB: guarantee _listener.Start executes before callers can access the listener's port. (Since we
-		// instantiate the listener with port 0, the OS dynamically assigns the "real" port on .Start.)
-		return (IPEndPoint)_connectionListener.LocalEndpoint;
 	}
 
 	private async Task ListenForPeer(CancellationToken cancelToken)
