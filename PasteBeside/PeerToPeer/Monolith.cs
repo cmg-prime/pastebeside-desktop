@@ -245,6 +245,5 @@ public class Monolith: IDisposable, IAsyncDisposable
 		_connectionListener.Dispose();
 		_discoveryListener.Dispose();
 		_broadcaster.Dispose();
-		_dataChannel.Dispose();
 	}
 }
