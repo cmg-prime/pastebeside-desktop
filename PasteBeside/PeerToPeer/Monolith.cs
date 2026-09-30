@@ -75,7 +75,11 @@ public class Monolith: IDisposable, IAsyncDisposable
 			cancelToken = _cancelTokenSource!.Token;
 			// NB: prevent race with disposal by ensuring the listen tasks are assigned within the lock.
 			_tcpListenerEndpoint = InitializeConnectionListener(cancelToken);
-			_discoveryListenLoop = ListenForPeer(cancelToken);
+			// NB: ListenForPeer represents a subtle async edge case: the code runs synchronously until 
+			// the first *incomplete* task. If the task result is already queued - i.e. a datagram already
+			// came in - there's no asynchronicity, and we keep hogging the lock until there is.
+			// Task.Run sidesteps this issue by sending the task to the thread pool regardless.
+			_discoveryListenLoop = Task.Run(() => ListenForPeer(cancelToken));
 		}
 		var peer = new Peer(_identityService.Identifier, _tcpListenerEndpoint);
 		_discoveredPeerRepo.AddPeer(peer);
@@ -89,7 +93,7 @@ public class Monolith: IDisposable, IAsyncDisposable
 	{
 		_logger.Info("Listening for incoming connection requests...");
 		_connectionListener.Start();
-		_tcpListenLoop = ListenForConnectionRequest(cancelToken);
+		_tcpListenLoop = Task.Run(() => ListenForConnectionRequest(cancelToken));
 
 		// NB: guarantee _listener.Start executes before callers can access the listener's port. (Since we
 		// instantiate the listener with port 0, the OS dynamically assigns the "real" port on .Start.)
